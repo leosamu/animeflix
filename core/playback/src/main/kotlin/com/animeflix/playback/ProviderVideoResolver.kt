@@ -5,8 +5,14 @@ import android.net.Uri
 import android.webkit.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
+import androidx.compose.material3.Button
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalInputModeManager
+import androidx.compose.ui.input.InputMode
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.webkit.WebViewCompat
@@ -38,13 +44,31 @@ internal object ProviderPolicy {
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-internal fun ProviderVideoResolver(server: PlaybackServer, episodeUrl: String, modifier: Modifier = Modifier,
+internal fun ProviderVideoResolver(server: PlaybackServer, episodeUrl: String, modifier: Modifier = Modifier, tv: Boolean = false,
     onResolved: (ResolvedVideo) -> Unit, onFailure: (String) -> Unit) {
     val resolved by rememberUpdatedState(onResolved)
     val failed by rememberUpdatedState(onFailure)
     var view by remember { mutableStateOf<WebView?>(null) }
     var finished by remember { mutableStateOf(false) }
     var verification by remember { mutableStateOf(false) }
+    var pointer by remember { mutableStateOf(false) }
+    var returnFocus by remember { mutableIntStateOf(0) }
+    val pointerButton = remember { FocusRequester() }
+    val inputMode = LocalInputModeManager.current
+    fun exitPointer() {
+        pointer = false; (view as? RemotePlayerWebView)?.releaseControls(); returnFocus++
+    }
+    LaunchedEffect(returnFocus) {
+        if(tv && returnFocus > 0) {
+            // Transfer focus after Android finishes dispatching the WebView's Back event.
+            inputMode.requestInputMode(InputMode.Keyboard)
+            withFrameNanos { }
+            pointerButton.requestFocus()
+        }
+    }
+    BackHandler(enabled = tv && pointer) {
+        exitPointer()
+    }
     LaunchedEffect(server.embedUrl, verification) {
         delay(if(verification) 180_000 else 45_000)
         if(!finished) { finished = true; failed("El servidor no ha entregado un vídeo compatible. Reintenta o elige otro servidor.") }
@@ -53,9 +77,19 @@ internal fun ProviderVideoResolver(server: PlaybackServer, episodeUrl: String, m
     Column(modifier) {
         Text(if(verification) "Este servidor solicita una verificación humana. Complétala en el recuadro para continuar, o elige otro servidor."
             else "Preparando vídeo de ${server.name}. Si aparece un botón de reproducción, púlsalo.")
+        if(tv) {
+            Button(onClick = { pointer = true; (view as? RemotePlayerWebView)?.controlVideo() },
+                modifier = Modifier.focusRequester(pointerButton).tvRemoteFocus()) { Text("Controlar verificación con mando") }
+            Text(if(pointer) "Cruceta: mover puntero · OK: pulsar · Atrás: salir del puntero"
+                else "Activa el puntero solo si el servidor necesita que pulses Play o una verificación.")
+        }
         AndroidView(modifier = Modifier.fillMaxWidth().height(220.dp), factory = { context ->
-            WebView(context).apply {
+            RemotePlayerWebView(context, tv).apply {
                 view = this
+                if(tv) {
+                    releaseControls()
+                    onExitControls = { exitPointer() }
+                }
                 layoutParams = android.view.ViewGroup.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                     android.view.ViewGroup.LayoutParams.MATCH_PARENT)
                 android.util.Log.i("AnimeFlixResolver", "Preparando ${server.name}")

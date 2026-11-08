@@ -1,5 +1,14 @@
 # Historial de versiones
 
+## v0.7.0-tv-preview.1 — 2026-11-08
+
+- Android TV usa reproducción nativa por defecto con los mismos resolvedores de MP4Upload, Voe, UPNShare y Byse validados en móvil.
+- Vídeo a pantalla completa y siempre horizontal. Atrás/Menú abre el panel de servidores sin desmontar ni reiniciar el vídeo; Ver vídeo devuelve el foco a Media3.
+- Panel desplazable con foco de borde blanco para seleccionar servidor/idioma, reintentar y marcar visto.
+- Byse conserva su verificación humana: puntero activable con mando durante la preparación y salida con Atrás que recupera el foco de la aplicación. No se automatiza el desafío.
+- Alternativa web conservada, con opción para regresar al modo nativo. HLS continúa experimental por rechazo HTTP 403.
+- Aplicación TV 0.7.0-tv-preview1, código 13. Firma de desarrollo conservada para actualizar la preview anterior sin borrar datos. Prueba en Android TV físico pendiente del usuario.
+
 ## Móvil 0.7.0 — 2026-11-08
 
 - Preparación de fuentes temporales mediante el embed del servidor, con una sola selección e idioma aislados y posterior reproducción con Media3. Primer servidor validado: Voe.

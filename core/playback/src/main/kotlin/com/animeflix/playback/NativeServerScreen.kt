@@ -44,7 +44,7 @@ import kotlinx.coroutines.delay
 @Composable
 internal fun NativeServerScreen(title: String, episodeUrl: String, servers: List<PlaybackServer>, loading: Boolean,
     serverError: String?, position: Long, watched: Boolean, onProgress: (String, Long, Long) -> Unit,
-    onMark: () -> Unit, onBack: () -> Unit, onWeb: () -> Unit) {
+    onMark: () -> Unit, onBack: () -> Unit, onWeb: () -> Unit, tv: Boolean = false) {
     var selectedUrl by rememberSaveable(episodeUrl) { mutableStateOf<String?>(null) }
     val selected = servers.find { it.embedUrl == selectedUrl } ?: servers.firstOrNull { Mp4UploadResolver.supports(it.embedUrl) }
         ?: servers.firstOrNull { ProviderPolicy.supports(it.embedUrl) }
@@ -68,7 +68,8 @@ internal fun NativeServerScreen(title: String, episodeUrl: String, servers: List
     }
     LaunchedEffect(activity, fullScreen) {
         activity?.let {
-            it.requestedOrientation = if(fullScreen) ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            it.requestedOrientation = if(tv) ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                else if(fullScreen) ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             WindowCompat.setDecorFitsSystemWindows(it.window, !fullScreen)
             WindowCompat.getInsetsController(it.window, it.window.decorView).apply {
                 systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
@@ -86,12 +87,34 @@ internal fun NativeServerScreen(title: String, episodeUrl: String, servers: List
             return@LaunchedEffect
         }
         resolving = true
-        try { video = Mp4UploadResolver().resolve(selected) }
+        try { video = Mp4UploadResolver().resolve(selected); if(tv) fullScreen = true }
         catch(failure: Exception) {
             if(failure is CancellationException) throw failure
             Log.w("AnimeFlixNative", "No se pudo resolver el vídeo: ${failure.javaClass.simpleName}")
             error = "No se pudo obtener el vídeo de este servidor. Reintenta o elige otro."
         } finally { resolving = false }
+    }
+    if(tv) {
+        TvNativePlayerLayout(title, servers, selected, loading || resolving, error ?: serverError,
+            position, watched, menu = !fullScreen, hasVideo = video != null,
+            onMenu = { fullScreen = !it }, onSelect = { selectedUrl = it.embedUrl }, onRetry = { retry++ },
+            onMark = onMark, onBack = onBack, onWeb = onWeb,
+            preparation = {
+                if(resolving && selected != null && ProviderPolicy.supports(selected.embedUrl)) {
+                    key(episodeUrl, selected.embedUrl, retry) {
+                        ProviderVideoResolver(selected, episodeUrl, tv = true,
+                            onResolved = { video = it; resolving = false; fullScreen = true },
+                            onFailure = { error = it; resolving = false })
+                    }
+                }
+            }, player = {
+                video?.let { source -> key(episodeUrl, source.url, retry) {
+                    NativeVideo(source, episodeUrl, position, Modifier.fillMaxSize(), onProgress,
+                        onRetry = { retry++; fullScreen = false }, fullScreen = fullScreen,
+                        onFullScreen = { fullScreen = it }, tv = true)
+                } }
+            })
+        return
     }
     Scaffold(topBar = { if(!fullScreen) TopAppBar(title = { Text(title) }, navigationIcon = { TextButton(onClick = onBack) { Text("Volver") } }) },
         contentWindowInsets = if(fullScreen) WindowInsets(0,0,0,0) else ScaffoldDefaults.contentWindowInsets) { padding ->
@@ -131,7 +154,8 @@ internal fun NativeServerScreen(title: String, episodeUrl: String, servers: List
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 private fun NativeVideo(source: ResolvedVideo, episodeUrl: String, resumePosition: Long, modifier: Modifier,
-    onProgress: (String, Long, Long) -> Unit, onRetry: () -> Unit, fullScreen: Boolean, onFullScreen: (Boolean) -> Unit) {
+    onProgress: (String, Long, Long) -> Unit, onRetry: () -> Unit, fullScreen: Boolean, onFullScreen: (Boolean) -> Unit,
+    tv: Boolean = false) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val save by rememberUpdatedState(onProgress)
@@ -192,7 +216,21 @@ private fun NativeVideo(source: ResolvedVideo, episodeUrl: String, resumePositio
         AndroidView(factory = { PlayerView(it).apply {
             this.player = player; keepScreenOn = true; useController = true
             setFullscreenButtonClickListener { value -> changeFullScreen(value) }
-        } }, update = { it.setFullscreenButtonState(fullScreen) },
+            if(tv) setOnKeyListener { _, key, event ->
+                if(key == android.view.KeyEvent.KEYCODE_MENU) {
+                    if(event.action == android.view.KeyEvent.ACTION_UP) changeFullScreen(false)
+                    true
+                } else false
+            }
+        } }, update = {
+            it.setFullscreenButtonState(fullScreen)
+            if(tv) {
+                it.useController = fullScreen
+                it.isFocusable = fullScreen; it.isFocusableInTouchMode = fullScreen
+                if(fullScreen && !it.hasFocus()) { it.requestFocus(); it.showController() }
+                if(!fullScreen) { it.hideController(); it.clearFocus() }
+            }
+        },
             modifier = Modifier.fillMaxSize().semantics { contentDescription = if(firstFrame) "Vídeo listo" else "Cargando vídeo" },
             onRelease = { it.player = null })
     }

@@ -79,16 +79,17 @@ private fun PlayerScreen(episodeUrl: String, title: String, onBack: () -> Unit, 
             error = "No se pudieron cargar los reproductores. Comprueba la conexión y reintenta."
         } finally { loading = false }
     }
-    if(!tv && nativeMode) {
+    if(nativeMode) {
         NativeServerScreen(title, activeEpisodeUrl, servers, loading, historyError ?: error, position, watched,
             onProgress = historyModel::progress, onMark = { historyModel.mark(activeEpisodeUrl, !watched) },
-            onBack = onBack, onWeb = { nativeMode = false })
+            onBack = onBack, onWeb = { nativeMode = false }, tv = tv)
         return
     }
     if(tv) {
         TvPlayerLayout(if(activeEpisodeUrl == episodeUrl) title else "Episodio ${activeEpisodeUrl.substringAfterLast('/')}",
             servers, loading, historyError ?: error, watched, if(position > 0) "Minuto guardado: ${playbackTime(position)}" else null,
-            onMark = { historyModel.mark(activeEpisodeUrl, !watched) }, onBack = onBack) { usePage, index, fit, reload, controlsActive, showMenu ->
+            onMark = { historyModel.mark(activeEpisodeUrl, !watched) }, onBack = onBack,
+            onNative = { nativeMode = true }) { usePage, index, fit, reload, controlsActive, showMenu ->
             val startUrl = remember(usePage, reload) { activeEpisodeUrl }
             val serverUrl = servers.getOrNull(index)?.embedUrl
             if(usePage || serverUrl != null) key(usePage, startUrl, if(usePage) null else serverUrl, reload) {

@@ -1,10 +1,10 @@
 # AnimeFlix
 
-Móvil 0.7.0 amplía la reproducción nativa de MP4Upload con preparación de enlaces temporales desde los embeds de Voe, HLS, UPNShare y Byse. Voe y UPNShare han reproducido con Media3 en el móvil; HLS devuelve un rechazo del servidor y Byse requiere verificación humana. Los resultados concretos están en [reproducción nativa](docs/reproduccion-nativa.md). Se conservan pantalla completa, pausa, avance y progreso local. El trabajo de reproducción en TV queda aplazado hasta validar esta ruta en móvil.
+Móvil 0.7.0 amplía la reproducción nativa de MP4Upload con preparación de enlaces temporales desde los embeds de Voe, HLS, UPNShare y Byse. Voe y UPNShare han reproducido con Media3 en el móvil; HLS devuelve un rechazo del servidor y Byse requiere verificación humana. Los resultados concretos están en [reproducción nativa](docs/reproduccion-nativa.md). Se conservan pantalla completa, pausa, avance y progreso local. La misma ruta se incorpora a Android TV 0.7.0-tv-preview1; su validación física en TV sigue pendiente.
 
 Código: [leosamu/animeflix](https://github.com/leosamu/animeflix). Entregas: [Releases](https://github.com/leosamu/animeflix/releases). Consulta [cómo guardar y publicar versiones](docs/versiones-github.md) y el [historial de cambios](CHANGELOG.md). El repositorio es privado; las descargas requieren acceso a GitHub.
 
-Proyecto Android nativo para móvil y Android TV. La versión móvil 0.5 incorpora Explorar, Mi lista, Historial, búsqueda, fichas, catálogo público de AnimeAV1, episodios y pantalla de reproductores web. Portadas, caché, favoritos, historial, vistos y progreso compatible persistentes en Room; marcado de episodios anteriores en bloque. Sin cuentas todavía. Android TV dispone de una primera versión 0.5.0-tv-preview1 con interfaz para mando, pendiente de pruebas físicas del usuario.
+Proyecto Android nativo para móvil y Android TV. Explorar, Mi lista, Historial, búsqueda, fichas, catálogo público de AnimeAV1 y episodios. Portadas, caché, favoritos, historial, vistos y progreso persistentes en Room; marcado de episodios anteriores en bloque. Sin cuentas todavía. Android TV 0.7.0-tv-preview1 incorpora reproducción nativa, panel de servidores con mando y verificación manual de Byse. Pendiente de prueba física en TV; consulta la [guía de instalación y pruebas](docs/android-tv-pruebas.md).
 
 ## Estructura
 
@@ -27,7 +27,7 @@ No hace falta instalar Gradle globalmente: el Wrapper descarga su distribución 
 
 ## Compilar en Windows
 
-Para instalar la versión TV ya generada: [guía de instalación y pruebas Android TV](docs/android-tv-pruebas.md). Archivo local `dist/AnimeFlix-TV-0.5.0-preview2.apk`, con firma de desarrollo y Android mínimo 6.0. Corrige el espacio insuficiente del reproductor en preview 1 con vídeo a pantalla completa y controles superpuestos. Es una versión de prueba: compilación/lint y firma verificados, pendiente de volver a probar en la TV. `dist/` está excluido de Git.
+Para instalar la versión TV: [guía de instalación y pruebas Android TV](docs/android-tv-pruebas.md). Archivo local `dist/AnimeFlix-TV-0.7.0-preview1.apk`, con firma de desarrollo y Android mínimo 6.0. Vídeo nativo a pantalla completa, controles Media3 y panel de servidores con mando. Etiqueta `v0.7.0-tv-preview.1`; descargar `AnimeFlix-TV.apk` desde su Release. `dist/` está excluido de Git.
 
 En este entorno se ha verificado JDK 17.0.21 y Gradle 8.11.1. El SDK local se instala en `.tools/android-sdk` (excluido de Git). Para reutilizar Java y la caché local incluso desde una terminal antigua, ejecuta `powershell -ExecutionPolicy Bypass -File scripts/build.ps1`. El resultado de la compilación se documenta en `docs/environment.md`.
 
@@ -110,7 +110,7 @@ Cubren búsqueda vacía/sin resultados, conservación de pantalla al recrear la 
 Para las pruebas locales sin depender de la web (siete desde 0.5):
 
 ```powershell
-.\gradlew.bat :app-mobile:connectedQaAndroidTest '-Pandroid.testInstrumentationRunnerArguments.notClass=com.animeflix.mobile.OriginalEpisodeWebViewTest,com.animeflix.mobile.RemoteEpisodeSmokeTest,com.animeflix.mobile.NativePlaybackSmokeTest,com.animeflix.mobile.OmaeServerProbeTest,com.animeflix.mobile.IntegratedProviderTest'
+.\gradlew.bat :app-mobile:connectedQaAndroidTest '-Pandroid.testInstrumentationRunnerArguments.notClass=com.animeflix.mobile.OriginalEpisodeWebViewTest,com.animeflix.mobile.RemoteEpisodeSmokeTest,com.animeflix.mobile.NativePlaybackSmokeTest,com.animeflix.mobile.OmaeServerProbeTest,com.animeflix.mobile.IntegratedProviderTest,com.animeflix.mobile.TvNativePlaybackTest'
 ```
 
 `RemoteEpisodeSmokeTest` consulta la ficha y el episodio 1 de One Piece para comprobar desde Android la lectura real de episodios y servidores; requiere conexión y disponibilidad de AnimeAV1. `OriginalEpisodeWebViewTest` comprueba que la página original carga su iframe dentro de la pantalla de reproducción. `:core:data:testDebugUnitTest` prueba también ordenación, deduplicación, idioma, esquema HTTPS y aislamiento de los enlaces de descarga. Estas pruebas no acreditan que un vídeo llegue a reproducirse: eso se valida manualmente en el dispositivo.

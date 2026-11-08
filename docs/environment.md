@@ -161,3 +161,13 @@ Validaciones:
 El usuario confirmó la entrada a pantalla completa y aclaró que, al salir, la pantalla permanecía apaisada y se recortaban los controles. Se corrigió en 0.6.2 fijando vertical para la vista normal y horizontal para pantalla completa; la orientación previa solo se restaura al abandonar la pantalla de reproducción. La prueba real se amplió para comprobar orientación vertical tras Atrás. La integración nativa corresponde a MP4Upload y al episodio utilizado, no a todos los servidores ni a todos los episodios.
 
 La prueba ampliada 0.6.2 pasó en el móvil (una prueba, cero fallos/errores/omitidas; Gradle 29 s). Instalación principal 0.6.2, versionCode 11, verificada con actualización sin borrado de datos y arranque en 1073 ms. El usuario confirmó que vuelve a vertical con todos los controles y sin perder el vídeo. Esta fase móvil queda validada para MP4Upload; los otros proveedores y la reproducción nativa TV siguen pendientes.
+
+## Actualización 0.7.0 y Android TV preview 1 — 2026-11-08
+
+Móvil 0.7.0 (código 12) integra Voe y UPNShare con vídeo nativo confirmado en SUB/DUB, progreso y pantalla completa. El usuario confirmó también Byse con controles nativos tras completar personalmente su verificación. HLS/Zilla sigue rechazando la descarga nativa con 403. Resultados y límites por proveedor en `docs/reproduccion-nativa.md`.
+
+Android TV 0.7.0-tv-preview1 (código 13, etiqueta `v0.7.0-tv-preview.1`) activa esa ruta nativa, mantiene horizontal y conserva el vídeo al abrir el panel de servidores. Incluye foco blanco y puntero explícito para la verificación de Byse. Al salir de la WebView se recupera el modo de entrada de mando/teclado y se devuelve el foco después de finalizar el evento Android, evitando que el modo táctil impida enfocar los botones.
+
+`TvNativePlaybackTest` completó tres pruebas sin fallos en el móvil QA: MP4Upload con vídeo y panel sin reinicio, Voe nativo, y entrada/salida del puntero de Byse con foco de vuelta al botón. Se comprueba horizontal y foco del servidor seleccionado. La prueba Byse mueve el puntero y pulsa Atrás, sin pulsar ni resolver la verificación humana. La regresión de reproducción móvil también pasó durante esta fase. No se ha conectado, instalado ni probado un Android TV físico, ni se ha ejecutado un emulador TV.
+
+Compilación y lint móvil/TV, cinco pruebas JVM de datos/resolver, compilación de QA y scripts de selección de fuentes/diseño TV completados correctamente. El APK TV se empaqueta con guía y SHA-256 y se verifica su certificado público contra la preview 2 antes de publicarlo. Los datos locales TV continúan separados de los del móvil.

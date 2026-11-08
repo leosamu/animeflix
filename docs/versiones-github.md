@@ -13,7 +13,7 @@ La primera etiqueta es `v0.5.0-tv-preview.1`. Se marca como prerelease porque TV
 
 El repositorio es privado. Sus Releases y archivos requieren autorización de GitHub; disponer del enlace no los convierte en descargas públicas. Para descarga pública desde una TV, se puede usar en el futuro un repositorio público separado solo para los APK u otro alojamiento. No se ha cambiado la visibilidad del código.
 
-Los APK de cada Release se llaman `AnimeFlix-Mobile.apk` y `AnimeFlix-TV.apk`; los enlaces incluyen la etiqueta y quedan asociados a esa versión. `releases/latest/download/…` se reserva para una futura versión estable: GitHub no trata un prerelease como la última versión estable.
+Según la entrega, se adjunta `AnimeFlix-Mobile.apk`, `AnimeFlix-TV.apk` o ambos; los enlaces incluyen la etiqueta y quedan asociados a esa versión. `v0.7.0-tv-preview.1` entrega el APK TV nativo, su guía y SHA-256. `releases/latest/download/…` se reserva para una futura versión estable: GitHub no trata un prerelease como la última versión estable.
 
 ## Publicar la siguiente versión
 

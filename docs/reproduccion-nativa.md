@@ -45,7 +45,7 @@ El intento tiene un límite de 45 segundos, ampliado a tres minutos si el provee
 .\gradlew.bat :app-mobile:connectedQaAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=com.animeflix.mobile.NativePlaybackSmokeTest'
 ```
 
-TV no se ha cambiado a reproducción nativa todavía y no se ha instalado en el dispositivo TV.
+TV 0.7.0-tv-preview1 usa los mismos resolvedores y Media3 por defecto, con pantalla completa horizontal, panel de servidores y puntero explícito para la verificación de Byse. `TvNativePlaybackTest` comprueba ese modo compartido en QA del móvil; no equivale a una prueba en hardware Android TV. La instalación y revisión física en TV corresponden a la [guía TV](android-tv-pruebas.md).
 
 ## Diagnóstico de otros servidores
 

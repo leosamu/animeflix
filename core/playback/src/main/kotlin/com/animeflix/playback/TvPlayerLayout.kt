@@ -18,7 +18,7 @@ import com.animeflix.model.PlaybackServer
 
 @Composable
 internal fun TvPlayerLayout(title: String, servers: List<PlaybackServer>, loading: Boolean, error: String?,
-    watched: Boolean, positionLabel: String?, onMark: () -> Unit, onBack: () -> Unit,
+    watched: Boolean, positionLabel: String?, onMark: () -> Unit, onBack: () -> Unit, onNative: (() -> Unit)? = null,
     player: @Composable (Boolean, Int, Boolean, Int, Boolean, () -> Unit) -> Unit
 ) {
     var menu by rememberSaveable { mutableStateOf(false) }
@@ -36,6 +36,7 @@ internal fun TvPlayerLayout(title: String, servers: List<PlaybackServer>, loadin
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(title, style = MaterialTheme.typography.titleLarge)
             Button(onClick = { menu = false }, modifier = Modifier.fillMaxWidth().focusRequester(first)) { Text("Ver vídeo · ocultar controles") }
+            onNative?.let { Button(onClick = it, modifier = Modifier.fillMaxWidth()) { Text("Usar reproducción nativa") } }
             Text("Cruceta: puntero · OK: pulsar · Atrás o Menú: controles", style = MaterialTheme.typography.bodySmall)
             Button(onClick = { reload++; menu = false }, modifier = Modifier.fillMaxWidth()) { Text("Recargar reproductor") }
             Button(onClick = { fit = !fit; menu = false }, modifier = Modifier.fillMaxWidth()) {
