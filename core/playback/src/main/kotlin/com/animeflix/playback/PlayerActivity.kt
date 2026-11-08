@@ -43,7 +43,8 @@ class PlayerActivity : ComponentActivity() {
         setContent {
             MaterialTheme(colorScheme = darkColorScheme()) {
                 PlayerScreen(url, intent.getStringExtra("title") ?: "Episodio", onBack = { finish() },
-                    tv = intent.getBooleanExtra("tvMode", resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_TYPE_MASK == android.content.res.Configuration.UI_MODE_TYPE_TELEVISION))
+                    tv = intent.getBooleanExtra("tvMode", resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_TYPE_MASK == android.content.res.Configuration.UI_MODE_TYPE_TELEVISION),
+                    preferNative = intent.getBooleanExtra("nativeMode", true))
             }
         }
     }
@@ -51,7 +52,7 @@ class PlayerActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun PlayerScreen(episodeUrl: String, title: String, onBack: () -> Unit, tv: Boolean = false, historyModel: WatchHistoryViewModel = viewModel()) {
+private fun PlayerScreen(episodeUrl: String, title: String, onBack: () -> Unit, tv: Boolean = false, preferNative: Boolean = true, historyModel: WatchHistoryViewModel = viewModel()) {
     var activeEpisodeUrl by rememberSaveable { mutableStateOf(episodeUrl) }
     val history by historyModel.entries.collectAsStateWithLifecycle()
     val historyError by historyModel.error.collectAsStateWithLifecycle()
@@ -65,6 +66,7 @@ private fun PlayerScreen(episodeUrl: String, title: String, onBack: () -> Unit, 
     var playerReload by remember { mutableIntStateOf(0) }
     var selected by rememberSaveable { mutableIntStateOf(0) }
     var originalPage by rememberSaveable { mutableStateOf(true) }
+    var nativeMode by rememberSaveable { mutableStateOf(preferNative) }
     val uriHandler = LocalUriHandler.current
     LaunchedEffect(activeEpisodeUrl, retry) {
         loading = true; error = null
@@ -76,6 +78,12 @@ private fun PlayerScreen(episodeUrl: String, title: String, onBack: () -> Unit, 
             android.util.Log.w("AnimeFlixPlayer", "No se pudieron cargar los reproductores", failure)
             error = "No se pudieron cargar los reproductores. Comprueba la conexión y reintenta."
         } finally { loading = false }
+    }
+    if(!tv && nativeMode) {
+        NativeServerScreen(title, activeEpisodeUrl, servers, loading, historyError ?: error, position, watched,
+            onProgress = historyModel::progress, onMark = { historyModel.mark(activeEpisodeUrl, !watched) },
+            onBack = onBack, onWeb = { nativeMode = false })
+        return
     }
     if(tv) {
         TvPlayerLayout(if(activeEpisodeUrl == episodeUrl) title else "Episodio ${activeEpisodeUrl.substringAfterLast('/')}",
@@ -95,6 +103,7 @@ private fun PlayerScreen(episodeUrl: String, title: String, onBack: () -> Unit, 
     }
     Scaffold(topBar = { TopAppBar(title = { Text(if (activeEpisodeUrl == episodeUrl) title else "Episodio ${activeEpisodeUrl.substringAfterLast('/')}") }, navigationIcon = { TextButton(onClick = onBack) { Text("Volver") } }) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            TextButton(onClick = { nativeMode = true }) { Text("Usar reproducción nativa") }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(selected = originalPage, onClick = { originalPage = true }, label = { Text("Reproductor de la web") })
                 FilterChip(selected = !originalPage, onClick = { originalPage = false }, label = { Text("Elegir servidor") })

@@ -3,7 +3,7 @@ android {
     namespace = "com.animeflix.mobile"
     compileSdk = 35
     defaultConfig {
-        applicationId = "com.animeflix.mobile"; minSdk = 23; targetSdk = 35; versionCode = 8; versionName = "0.5.0"
+        applicationId = "com.animeflix.mobile"; minSdk = 23; targetSdk = 35; versionCode = 11; versionName = "0.6.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true; buildConfig = true }

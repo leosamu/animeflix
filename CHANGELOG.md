@@ -1,5 +1,19 @@
 # Historial de versiones
 
+## Móvil 0.6.2 — 2026-11-08
+
+- Corrige el regreso de pantalla completa: vuelve explícitamente a vertical para evitar que se recorten controles en horizontal.
+- La prueba real de reproducción comprueba también la orientación vertical después de pulsar Atrás.
+
+## Móvil 0.6.1 — 2026-11-08
+
+- Primera reproducción nativa por servidor con Android Media3: MP4Upload.
+- Selección automática del servidor compatible, lectura validada de su configuración pública y reobtención de enlaces temporales al reintentar.
+- Controles nativos de pausa/avance, foco de audio y progreso local.
+- Pantalla completa desde el botón o el icono del vídeo y salida mediante Atrás sin reiniciar el reproductor.
+- Prueba instrumental con un vídeo real de MP4Upload, en aplicación QA separada.
+- HLS, UPNShare, Voe y Byse pendientes de integración nativa. Pruebas de reproducción TV aplazadas hasta validar móvil.
+
 ## v0.5.0-tv-preview.2 — 2026-11-08
 
 - Corrige el espacio insuficiente del WebView observado en la prueba real de TV: reproductor a pantalla completa y controles en panel superpuesto.

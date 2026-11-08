@@ -30,7 +30,7 @@ class OriginalEpisodeWebViewTest {
         check(context.packageName.endsWith(".qa"))
         val url = "https://animeav1.com/media/one-piece/1"
         ActivityScenario.launch<PlayerActivity>(Intent(context, PlayerActivity::class.java)
-            .putExtra("episodeUrl", url).putExtra("title", "Episodio 1")).use { scenario ->
+            .putExtra("episodeUrl", url).putExtra("title", "Episodio 1").putExtra("nativeMode", false)).use { scenario ->
             var frame = ""
             val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30)
             while (System.nanoTime() < deadline && !frame.contains("https://")) {

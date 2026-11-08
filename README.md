@@ -1,5 +1,7 @@
 # AnimeFlix
 
+Móvil 0.6.2 incorpora reproducción nativa de MP4Upload mediante Android Media3, con pantalla completa, pausa, avance y progreso local. Al salir de pantalla completa vuelve a la vista vertical con los controles. Es la primera integración nativa por servidor; los demás proveedores todavía no son compatibles con este modo. El trabajo de reproducción en TV queda aplazado hasta validar esta ruta en móvil. Detalles y pruebas: [reproducción nativa](docs/reproduccion-nativa.md).
+
 Código: [leosamu/animeflix](https://github.com/leosamu/animeflix). Entregas: [Releases](https://github.com/leosamu/animeflix/releases). Consulta [cómo guardar y publicar versiones](docs/versiones-github.md) y el [historial de cambios](CHANGELOG.md). El repositorio es privado; las descargas requieren acceso a GitHub.
 
 Proyecto Android nativo para móvil y Android TV. La versión móvil 0.5 incorpora Explorar, Mi lista, Historial, búsqueda, fichas, catálogo público de AnimeAV1, episodios y pantalla de reproductores web. Portadas, caché, favoritos, historial, vistos y progreso compatible persistentes en Room; marcado de episodios anteriores en bloque. Sin cuentas todavía. Android TV dispone de una primera versión 0.5.0-tv-preview1 con interfaz para mando, pendiente de pruebas físicas del usuario.
@@ -65,7 +67,9 @@ Las fichas consultan los episodios publicados por AnimeAV1 y los presentan en gr
 
 El 8 de noviembre de 2026, el usuario confirmó reproducción efectiva en su móvil con la versión 0.3.3 usando `Reproductor de la web`. No se considera validada la reproducción mediante los iframes directos de `Elegir servidor` ni en Android TV.
 
-Al abrir un episodio se usa por defecto `Reproductor de la web`, que carga la página original completa dentro de Android WebView, con su contexto y scripts. `Elegir servidor` permite usar directamente los iframes publicados, identificados por idioma y servidor. Es una integración web: no hay extracción de MP4/HLS, reproductor Media3 ni elusión de bloqueos. Incluye pantalla completa cuando el proveedor la admite, pausa al salir al fondo, liberación del reproductor al cerrar, errores, recarga y apertura de la página original en un navegador.
+En móvil 0.6.1 se usa por defecto reproducción nativa si se publica un MP4Upload compatible. Se lee la configuración MP4 que expone su página de reproducción y se entrega a Android Media3, sin eludir DRM, desafíos ni bloqueos. La URL de vídeo es temporal y se obtiene de nuevo al reintentar. No se guarda en Room ni se usan claves de servidor.
+
+`Usar reproductor web` conserva la página original completa y los iframes como alternativa. La versión TV publicada mantiene esa ruta web; el usuario ha comunicado que no resulta efectiva en su dispositivo, por lo que no se considera validada. Se trabajará en la adaptación nativa a TV después de móvil.
 
 Solo se aceptan enlaces HTTPS; la actividad no está exportada, no se permiten archivos locales ni interfaces JavaScript nativas, y se bloquean ventanas emergentes, descargas e intentos de abrir aplicaciones externas desde el reproductor. La disponibilidad, controles y compatibilidad dependen de cada servidor y de Android System WebView. Un servidor que responde 403 puede no ser utilizable dentro de la aplicación; debe usarse otro o la página original.
 
@@ -106,7 +110,7 @@ Cubren búsqueda vacía/sin resultados, conservación de pantalla al recrear la 
 Para las pruebas locales sin depender de la web (siete desde 0.5):
 
 ```powershell
-.\gradlew.bat :app-mobile:connectedQaAndroidTest '-Pandroid.testInstrumentationRunnerArguments.notClass=com.animeflix.mobile.OriginalEpisodeWebViewTest,com.animeflix.mobile.RemoteEpisodeSmokeTest'
+.\gradlew.bat :app-mobile:connectedQaAndroidTest '-Pandroid.testInstrumentationRunnerArguments.notClass=com.animeflix.mobile.OriginalEpisodeWebViewTest,com.animeflix.mobile.RemoteEpisodeSmokeTest,com.animeflix.mobile.NativePlaybackSmokeTest'
 ```
 
 `RemoteEpisodeSmokeTest` consulta la ficha y el episodio 1 de One Piece para comprobar desde Android la lectura real de episodios y servidores; requiere conexión y disponibilidad de AnimeAV1. `OriginalEpisodeWebViewTest` comprueba que la página original carga su iframe dentro de la pantalla de reproducción. `:core:data:testDebugUnitTest` prueba también ordenación, deduplicación, idioma, esquema HTTPS y aislamiento de los enlaces de descarga. Estas pruebas no acreditan que un vídeo llegue a reproducirse: eso se valida manualmente en el dispositivo.

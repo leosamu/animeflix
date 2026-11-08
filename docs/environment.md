@@ -141,3 +141,23 @@ No se ha instalado en TV físico ni ejecutado en emulador TV. Tampoco se ha actu
 La fotografía enviada por el usuario muestra que los controles nativos consumían casi toda la altura disponible y el WebView quedaba reducido a una franja. Se añadió una composición específica para TV: WebView a pantalla completa, controles en panel superpuesto mediante Atrás/Menú y retorno al puntero al ocultar el panel. El iframe publicado se dimensiona al viewport manteniendo su fuente y contexto; el panel permite recuperar la página completa. El WebView deja de aceptar foco mientras el panel está abierto. La rama móvil mantiene su interfaz.
 
 APK `0.5.0-tv-preview2`, versionCode 9, 11 330 464 bytes. Compilación móvil/TV, lint, compilación de pruebas QA y pruebas JVM superadas en la comprobación final (22 s, 203 tareas). La prueba local `node scripts/test-tv-video-layout.cjs` verifica expansión, restauración de estilos, iframe insertado dinámicamente y conservación de su URL. Firma de desarrollo verificada y conservada para actualizar sobre preview 1. Pendiente de nueva validación física en la TV del usuario.
+
+## Cambio a reproducción nativa en móvil — 0.6.1
+
+El usuario comunicó que la corrección web de TV seguía sin permitir ver el reproductor y solicitó conseguir primero reproducción por servidor en móvil, conectando el dispositivo. ADB confirmó el móvil autorizado.
+
+Se implementó `Mp4UploadResolver`, que lee la configuración MP4 pública del embed y valida HTTPS, dominio, puerto y extensión. Se integró Media3 1.6.1 como reproductor nativo de móvil con controles, foco de audio, errores/reintento, guardado de progreso y liberación al salir. No se han eludido desafíos, DRM ni rechazos HTTP. La consulta HLS respondió 403 en el entorno de inspección; el resolver Voe no se implementó. UPNShare y Byse siguen pendientes de reproducción nativa.
+
+Validaciones:
+
+- Pruebas JVM del lector y del resolver MP4: superadas. Cubren configuración publicada, puerto del proveedor, rechazo de otros hosts, credenciales y enlaces no MP4.
+- `NativePlaybackSmokeTest` ejecutado en QA con One Piece episodio 1: primer fotograma de vídeo real y progreso guardado; 1 prueba, 0 fallos/errores/omitidas.
+- El usuario confirmó que había vídeo nativo en 0.6.0 y señaló que faltaba pantalla completa.
+- 0.6.1 añade pantalla completa mediante el control Media3 y un botón explícito, orientación horizontal, ocultación de barras y controles externos y salida inicial con Atrás. Se conserva la instancia de ExoPlayer al alternar la vista.
+- Prueba real ampliada: vídeo, progreso, entrada a pantalla completa, regreso con Atrás y conservación de la vista con fotograma listo. **BUILD SUCCESSFUL**, 47 s, una prueba ejecutada sin fallos.
+- Compilación y lint móvil y pruebas JVM superados. La compilación TV también se comprobó, pero no se cambió su modo a nativo ni se publicó un APK TV nuevo en esta fase.
+- Instalación principal **0.6.1 (versionCode 10)** verificada con el script; arranque Status ok en 1277 ms, actualización con conservación de datos.
+
+El usuario confirmó la entrada a pantalla completa y aclaró que, al salir, la pantalla permanecía apaisada y se recortaban los controles. Se corrigió en 0.6.2 fijando vertical para la vista normal y horizontal para pantalla completa; la orientación previa solo se restaura al abandonar la pantalla de reproducción. La prueba real se amplió para comprobar orientación vertical tras Atrás. La integración nativa corresponde a MP4Upload y al episodio utilizado, no a todos los servidores ni a todos los episodios.
+
+La prueba ampliada 0.6.2 pasó en el móvil (una prueba, cero fallos/errores/omitidas; Gradle 29 s). Instalación principal 0.6.2, versionCode 11, verificada con actualización sin borrado de datos y arranque en 1073 ms. El usuario confirmó que vuelve a vertical con todos los controles y sin perder el vídeo. Esta fase móvil queda validada para MP4Upload; los otros proveedores y la reproducción nativa TV siguen pendientes.
