@@ -1,0 +1,41 @@
+name: Android checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - name: Install Android SDK components
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Compile, test and lint mobile and TV
+        run: bash ./gradlew --no-daemon :core:data:testDebugUnitTest :app-mobile:assembleDebug :app-mobile:lintDebug :app-tv:assembleDebug :app-tv:lintDebug :app-mobile:compileQaAndroidTestKotlin
+      - name: Save verification reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-reports
+          path: |
+            app-mobile/build/reports/
+            app-tv/build/reports/
+            core/data/build/reports/
+          if-no-files-found: ignore
+          retention-days: 14
