@@ -6,6 +6,7 @@ import java.util.Locale
 
 data class EpisodeInventory(val mediaUrl: String, val episodes: List<Episode>, val latestPublishedAt: Long?, val checkedAt: Long)
 data class EpisodeAvailability(val total: Int, val pending: Int, val latestNumber: String?, val publishedAt: Long?, val checkedAt: Long) {
+    val caughtUp: Boolean get() = total > 0 && pending == 0
     val badge: String get() = when { total == 0 -> "Sin episodios"; pending == 0 -> "Al día"; pending == 1 -> "1 pendiente"; else -> "$pending pendientes" }
     val latestLabel: String get() = latestNumber?.let { number ->
         "Último: episodio $number · " + (publishedAt?.let { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(it)) } ?: "Fecha no disponible")

@@ -28,6 +28,12 @@ class CatalogViewModel(app: Application, private val saved: SavedStateHandle) : 
     val query = saved.getStateFlow("query", "")
     val section = saved.getStateFlow("section", "catalog")
     val selectedId = saved.getStateFlow<String?>("selected", null)
+    private val preferences = app.getSharedPreferences("library_preferences", android.content.Context.MODE_PRIVATE)
+    val hideCaughtUp = saved.getStateFlow("hideCaughtUp", preferences.getBoolean("hideCaughtUp", false))
+    fun setHideCaughtUp(value: Boolean) {
+        saved["hideCaughtUp"] = value
+        preferences.edit().putBoolean("hideCaughtUp", value).apply()
+    }
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val state = refresh.flatMapLatest {

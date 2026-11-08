@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -15,6 +16,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -39,6 +42,7 @@ fun AnimeFlixApp(model: CatalogViewModel = viewModel(), updates: LibraryUpdatesV
     val query by model.query.collectAsStateWithLifecycle()
     val section by model.section.collectAsStateWithLifecycle()
     val selectedId by model.selectedId.collectAsStateWithLifecycle()
+    val hideCaughtUp by model.hideCaughtUp.collectAsStateWithLifecycle()
     val selected = state.items.find { it.id == selectedId }
     val availability by updates.statuses.collectAsStateWithLifecycle()
     val inventories by updates.inventories.collectAsStateWithLifecycle()
@@ -49,8 +53,16 @@ fun AnimeFlixApp(model: CatalogViewModel = viewModel(), updates: LibraryUpdatesV
     BackHandler(enabled = selectedId == null && section != "catalog") { model.navigate("catalog") }
     MaterialTheme(colorScheme = colors) {
         Scaffold(topBar = {
-            TopAppBar(title = { Text("ANIMEFLIX", fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary) },
-                navigationIcon = { if (selectedId != null) TextButton(onClick = { model.open(null) }) { Text("Volver") } })
+            TopAppBar(title = { Text("ANIMEFLIX", maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary) },
+                navigationIcon = { if (selectedId != null) TextButton(onClick = { model.open(null) }) { Text("Volver") } },
+                actions = { if(selectedId == null && section != "history") {
+                    Row(Modifier.padding(end = 8.dp).toggleable(hideCaughtUp, role = Role.Switch, onValueChange = model::setHideCaughtUp)
+                        .semantics { contentDescription = "Ocultar series al día" }, verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Ocultar al día", style = MaterialTheme.typography.labelSmall)
+                        Switch(checked = hideCaughtUp, onCheckedChange = null)
+                    }
+                } })
         }, bottomBar = {
             if (selectedId == null) NavigationBar {
                 NavigationBarItem(selected = section == "catalog", onClick = { model.navigate("catalog") }, icon = { Text("▦") }, label = { Text("Explorar") })
@@ -93,9 +105,11 @@ fun AnimeFlixApp(model: CatalogViewModel = viewModel(), updates: LibraryUpdatesV
                                 TextButton(onClick = { updates.refreshFavorites(force = true) }, enabled = !checking && !BuildConfig.DEMO_CATALOG) { Text("Actualizar episodios") }
                             }
                         }
-                        val visible = state.items.filter { (section != "favorites" || it.favorite) &&
+                        val matching = state.items.filter { (section != "favorites" || it.favorite) &&
                             (it.title.contains(query.trim(), true) || it.synopsis.contains(query.trim(), true)) }
-                        if (visible.isEmpty()) EmptyMessage(when { query.isNotBlank() -> "Sin resultados"; section == "favorites" -> "Tu lista empieza aquí"; else -> "Catálogo vacío" },
+                        val visible = matching.filter { !hideCaughtUp || availability[it.sourceUrl.trimEnd('/')]?.caughtUp != true }
+                        if(visible.isEmpty() && matching.isNotEmpty() && hideCaughtUp) EmptyMessage("Series al día ocultas", "Desactiva Ocultar al día para volver a verlas.")
+                        else if (visible.isEmpty()) EmptyMessage(when { query.isNotBlank() -> "Sin resultados"; section == "favorites" -> "Tu lista empieza aquí"; else -> "Catálogo vacío" },
                             when { query.isNotBlank() -> "Prueba con otro título o borra la búsqueda."; section == "favorites" -> "Abre una ficha y añade tu primer favorito."; else -> "Actualiza el catálogo para descargar los primeros títulos." })
                         else LazyVerticalGrid(columns = GridCells.Adaptive(155.dp), contentPadding = PaddingValues(20.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -104,6 +118,8 @@ fun AnimeFlixApp(model: CatalogViewModel = viewModel(), updates: LibraryUpdatesV
                                 OutlinedButton(onClick = model::loadMore, enabled = !state.refreshing, modifier = Modifier.fillMaxWidth()) { Text("Cargar más") }
                             }
                         }
+                        if(visible.isEmpty() && section == "catalog" && state.canLoadMore)
+                            OutlinedButton(onClick = model::loadMore, enabled = !state.refreshing, modifier = Modifier.padding(horizontal = 20.dp)) { Text("Cargar más") }
                     }
                 }
             }

@@ -2,7 +2,7 @@ plugins { id("com.android.application"); kotlin("android"); id("org.jetbrains.ko
 android {
     namespace = "com.animeflix.tv"
     compileSdk = 35
-    defaultConfig { applicationId = "com.animeflix.tv"; minSdk = 23; targetSdk = 35; versionCode = 15; versionName = "0.8.0-tv-preview1" }
+    defaultConfig { applicationId = "com.animeflix.tv"; minSdk = 23; targetSdk = 35; versionCode = 17; versionName = "0.8.1-tv-preview1" }
     buildFeatures { compose = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }

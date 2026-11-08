@@ -14,6 +14,10 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.ContentScale
@@ -34,6 +38,7 @@ fun AnimeFlixTvApp(catalog: CatalogViewModel = viewModel(), history: WatchHistor
     val section by catalog.section.collectAsStateWithLifecycle()
     val query by catalog.query.collectAsStateWithLifecycle()
     val selectedId by catalog.selectedId.collectAsStateWithLifecycle()
+    val hideCaughtUp by catalog.hideCaughtUp.collectAsStateWithLifecycle()
     val marks by history.entries.collectAsStateWithLifecycle()
     val historyError by history.error.collectAsStateWithLifecycle()
     val episodeState by episodes.state.collectAsStateWithLifecycle()
@@ -73,6 +78,14 @@ fun AnimeFlixTvApp(catalog: CatalogViewModel = viewModel(), history: WatchHistor
                     Button(onClick = { draft = query; searchOpen = true }) { Text("Buscar") }
                 }
                 Text("AnimeFlix TV", style = MaterialTheme.typography.titleLarge)
+                Spacer(Modifier.weight(1f))
+                if(selectedId == null && section != "history") Button(onClick = { catalog.setHideCaughtUp(!hideCaughtUp) },
+                    modifier = Modifier.semantics { contentDescription = "Ocultar series al día"; stateDescription = if(hideCaughtUp) "Activado" else "Desactivado" }) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        androidx.compose.material3.Checkbox(checked = hideCaughtUp, onCheckedChange = null)
+                        Text("Ocultar al día")
+                    }
+                }
             }
             (state.error ?: historyError)?.let { message ->
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -146,8 +159,9 @@ fun AnimeFlixTvApp(catalog: CatalogViewModel = viewModel(), history: WatchHistor
                     }
                 }
                 else -> {
-                    val visible = state.items.filter { (section != "favorites" || it.favorite) &&
+                    val matching = state.items.filter { (section != "favorites" || it.favorite) &&
                         (it.title.contains(query.trim(), true) || it.synopsis.contains(query.trim(), true)) }
+                    val visible = matching.filter { !hideCaughtUp || availability[it.sourceUrl.trimEnd('/')]?.caughtUp != true }
                     Text(if(section == "favorites") "Mi lista" else "Explorar AnimeAV1", style = MaterialTheme.typography.headlineMedium)
                     if(section == "favorites") {
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -162,7 +176,8 @@ fun AnimeFlixTvApp(catalog: CatalogViewModel = viewModel(), history: WatchHistor
                     }
                     if(state.refreshing) Text("Actualizando…")
                     LazyColumn(Modifier.weight(1f), state = listState, verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(8.dp)) {
-                        if(visible.isEmpty()) item { Text("No hay títulos para mostrar. Prueba otra búsqueda o añade favoritos.") }
+                        if(visible.isEmpty()) item { Text(if(matching.isNotEmpty() && hideCaughtUp) "Series al día ocultas. Desactiva Ocultar al día para volver a verlas."
+                            else "No hay títulos para mostrar. Prueba otra búsqueda o añade favoritos.") }
                         items(visible, key = { it.id }) { anime ->
                             Surface(onClick = { catalog.open(anime.id) }, modifier = Modifier.fillMaxWidth()) {
                                 Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {

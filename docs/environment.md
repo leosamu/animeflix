@@ -179,3 +179,9 @@ Indicadores de pendientes y fecha de última publicación incorporados a móvil 
 Ocho pruebas JVM de datos/modelo superadas, nueve comprobaciones QA locales de interfaz/historial/migración sin errores y una consulta real adicional de Omae gotoki: se obtuvo y guardó el `publishedAt` del último episodio. La interfaz comprobó cambios de pendientes a Al día, desmarcado, recreación y aparición de un episodio nuevo sin volver a abrir la ficha. Se cubren asimismo enlaces con barra final. No se utiliza el `updatedAt` de la ficha ni se inventa una fecha cuando falta.
 
 Compilación y lint móvil/TV verificados; firmas de actualización comprobadas contra 0.7.0. La versión móvil se instala con conservación de datos. La revisión física de la entrega TV continúa pendiente del usuario. Detalles en `docs/mi-lista-pendientes.md`.
+
+## Interruptor Ocultar al día 0.8.1 — 2026-11-08
+
+Móvil 0.8.1 (16) y TV 0.8.1-tv-preview1 (17) añaden el filtro en la esquina superior derecha de Explorar/Mi lista. Solo oculta series con inventario conocido, al menos un episodio y ninguno pendiente. Sin inventario o sin episodios permanecen visibles. Se guarda por aplicación en preferencias privadas; Historial y la ficha abierta no se filtran.
+
+Diez pruebas QA locales superadas, incluidas navegación, migración y la nueva comprobación del filtro: conserva las series sin comprobar, recuerda el estado tras recrear la actividad y devuelve una serie oculta a la lista al añadirse un episodio pendiente. Ocho pruebas JVM, compilación y lint móvil/TV superados. No cambia el esquema Room v5.

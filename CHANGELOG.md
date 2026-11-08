@@ -1,5 +1,13 @@
 # Historial de versiones
 
+## v0.8.1-tv-preview.1 — 2026-11-08
+
+- Interruptor Ocultar al día arriba a la derecha en móvil y casilla con mando en TV, en Explorar y Mi lista.
+- Oculta únicamente series comprobadas con episodios publicados y cero pendientes. Mantiene visibles las que no tienen datos o aún no publican capítulos; Historial y fichas no se filtran.
+- La preferencia se conserva al recrear/cerrar la aplicación. Cuando llega un capítulo pendiente a una serie oculta, reaparece al actualizar sus datos.
+- Mensaje específico cuando el filtro oculta todos los resultados; el catálogo mantiene Cargar más disponible.
+- Móvil 0.8.1 (16), TV 0.8.1-tv-preview1 (17), sin cambios adicionales de base de datos.
+
 ## v0.8.0-tv-preview.1 — 2026-11-08
 
 - Móvil 0.8.0 (14) y TV 0.8.0-tv-preview1 (15): Mi lista muestra el número de episodios publicados sin marcar como vistos, Al día o estado sin comprobar.

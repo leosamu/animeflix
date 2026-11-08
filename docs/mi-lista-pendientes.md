@@ -12,4 +12,10 @@ Disponible en móvil 0.8.0 y TV 0.8.0-tv-preview1.
 
 Room pasa de v4 a v5 con una tabla adicional para las listas y la fecha. La migración conserva favoritos, historial, vistos y minutos guardados. Móvil y TV continúan teniendo datos independientes; no se añaden cuentas, sincronización ni notificaciones en segundo plano.
 
+## Ocultar al día — 0.8.1
+
+En la barra superior derecha de Explorar y Mi lista hay un interruptor en móvil y una casilla accionable con OK en TV. Oculta solo series con episodios publicados comprobados y cero pendientes. Las series sin comprobar o todavía sin episodios siguen visibles. La preferencia se guarda en cada dispositivo y sobrevive al cierre/recreación de la app.
+
+No cambia favoritos, vistos ni historial. La ficha de una serie abierta no se cierra al ponerse al día. Las series ocultas siguen incluidas en la comprobación de favoritos: una nueva publicación pendiente las devuelve a la lista al actualizar los datos. Si todos los resultados están ocultos, se indica cómo desactivar el filtro; el catálogo conserva Cargar más cuando hay más páginas.
+
 Validación: pruebas de episodios con huecos/especiales, títulos distintos, vistos explícitos y cambios Al día → pendiente; fechas UTC/offset/microsegundos y ausencia de publicación; migraciones v2/v4 a v5 y reapertura; interfaz con contador/fecha, recreación y llegada de un episodio nuevo; consulta real de Omae gotoki y persistencia de su fecha. Las pruebas QA usan una aplicación separada.

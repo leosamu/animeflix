@@ -24,8 +24,11 @@ class EpisodeAvailabilityTest {
         val history = listOf(WatchEntry(first.pageUrl, media, "1", watched = true))
         val inventory = EpisodeInventory(media, listOf(first), null, 1)
         assertEquals("Al día", episodeAvailability(inventory, history).badge)
+        assertTrue(episodeAvailability(inventory, history).caughtUp)
         assertEquals("1 pendiente", episodeAvailability(inventory.copy(episodes = listOf(first, episode("2"))), history).badge)
         assertEquals("Sin episodios", episodeAvailability(inventory.copy(episodes = emptyList()), history).badge)
+        assertFalse(episodeAvailability(inventory.copy(episodes = emptyList()), history).caughtUp)
+        assertFalse(episodeAvailability(inventory.copy(episodes = listOf(first, episode("2"))), history).caughtUp)
         assertTrue(episodeAvailability(inventory, history).latestLabel.contains("Fecha no disponible"))
     }
     @Test fun readsOnlyTheRequestedEpisodesPublicationDateAndPreservesOffsets() {

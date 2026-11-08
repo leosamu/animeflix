@@ -17,6 +17,8 @@ Según la entrega, se adjunta `AnimeFlix-Mobile.apk`, `AnimeFlix-TV.apk` o ambos
 
 `v0.8.0-tv-preview.1` entrega ambos APK con marcadores de pendientes y fecha del último episodio, guía TV y SHA-256 de móvil/TV. Mantiene las firmas de prueba de 0.7.0.
 
+`v0.8.1-tv-preview.1` añade el interruptor Ocultar al día en ambos APK, conservando los archivos de la entrega 0.8.0 y las firmas de actualización.
+
 ## Publicar la siguiente versión
 
 1. Cambiar `versionName` y aumentar `versionCode` en los módulos de aplicación que se actualicen.
