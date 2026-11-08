@@ -135,3 +135,9 @@ Validación realizada:
 - Entrega: `dist/AnimeFlix-TV-0.5.0-preview1.apk`, 11 294 455 bytes. SHA-256 en `dist/SHA256SUMS.txt`, instrucciones en `dist/LEEME-ANDROID-TV.md` y copia versionada en `docs/android-tv-pruebas.md`.
 
 No se ha instalado en TV físico ni ejecutado en emulador TV. Tampoco se ha actualizado la instalación móvil del usuario en esta fase. Las pruebas instrumentadas móviles se han compilado, no ejecutado de nuevo. El usuario realizará las pruebas de la guía, especialmente foco del mando, teclado, puntero, vídeo, pantalla completa, regreso al minuto y segundo plano. La sincronización móvil/TV continúa sin implementar.
+
+## Corrección del reproductor TV — preview 2
+
+La fotografía enviada por el usuario muestra que los controles nativos consumían casi toda la altura disponible y el WebView quedaba reducido a una franja. Se añadió una composición específica para TV: WebView a pantalla completa, controles en panel superpuesto mediante Atrás/Menú y retorno al puntero al ocultar el panel. El iframe publicado se dimensiona al viewport manteniendo su fuente y contexto; el panel permite recuperar la página completa. El WebView deja de aceptar foco mientras el panel está abierto. La rama móvil mantiene su interfaz.
+
+APK `0.5.0-tv-preview2`, versionCode 9, 11 330 464 bytes. Compilación móvil/TV, lint, compilación de pruebas QA y pruebas JVM superadas en la comprobación final (22 s, 203 tareas). La prueba local `node scripts/test-tv-video-layout.cjs` verifica expansión, restauración de estilos, iframe insertado dinámicamente y conservación de su URL. Firma de desarrollo verificada y conservada para actualizar sobre preview 1. Pendiente de nueva validación física en la TV del usuario.

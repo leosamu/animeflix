@@ -1,5 +1,15 @@
 # Historial de versiones
 
+## v0.5.0-tv-preview.2 — 2026-11-08
+
+- Corrige el espacio insuficiente del WebView observado en la prueba real de TV: reproductor a pantalla completa y controles en panel superpuesto.
+- Atrás/Menú abre los controles; Ver vídeo los oculta y recupera el puntero.
+- El iframe original se ajusta al tamaño completo de la pantalla sin cambiar su fuente; opción para restaurar la página completa.
+- El foco del WebView se desactiva mientras se usa el panel; el puntero se limita al área visible al cambiar de tamaño.
+- Se mantiene la firma de desarrollo para actualizar sobre preview 1 sin borrar datos.
+
+Pendiente de nueva comprobación física en la TV del usuario.
+
 ## v0.5.0-tv-preview.1 — 2026-11-08
 
 Primera versión del proyecto publicada en GitHub. Incluye móvil 0.5.0 y Android TV 0.5.0-tv-preview1.

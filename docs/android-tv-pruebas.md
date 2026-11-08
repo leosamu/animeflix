@@ -1,10 +1,10 @@
-# AnimeFlix Android TV — 0.5.0 preview 1
+# AnimeFlix Android TV — 0.5.0 preview 2
 
 Esta versión es para pruebas mediante instalación manual. Compilación y análisis estático verificados; no se ha probado en un Android TV físico ni en un emulador TV. No está publicada en Google Play. APK firmado con clave de desarrollo, sin claves de producción.
 
 ## Archivo e instalación
 
-Archivo entregado: `dist/AnimeFlix-TV-0.5.0-preview1.apk`. Android 6.0 o posterior (API 23), Android TV/Google TV y conexión a internet para el catálogo y el vídeo. Dispositivos basados en Android que no sean Android TV/Google TV pueden no mostrar el acceso de TV; Fire TV no está validado.
+Archivo entregado: `dist/AnimeFlix-TV-0.5.0-preview2.apk`. Android 6.0 o posterior (API 23), Android TV/Google TV y conexión a internet para el catálogo y el vídeo. Dispositivos basados en Android que no sean Android TV/Google TV pueden no mostrar el acceso de TV; Fire TV no está validado.
 
 1. Copia el APK al dispositivo por USB o mediante tu herramienta habitual de transferencia.
 2. Ábrelo con un gestor de archivos y permite instalar aplicaciones desde ese gestor cuando Android lo solicite.
@@ -14,7 +14,7 @@ Archivo entregado: `dist/AnimeFlix-TV-0.5.0-preview1.apk`. Android 6.0 o posteri
 Opcional, si usas ADB en tu propio entorno:
 
 ```text
-adb install -r AnimeFlix-TV-0.5.0-preview1.apk
+adb install -r AnimeFlix-TV-0.5.0-preview2.apk
 adb shell am start -n com.animeflix.tv/.MainActivity
 ```
 
@@ -25,9 +25,10 @@ El SHA-256 del archivo se incluye en `dist/SHA256SUMS.txt`. La firma es de desar
 - Cruceta y OK: mover el foco y seleccionar los controles de la aplicación.
 - Atrás: cerrar un diálogo, volver de una ficha al catálogo o regresar a Explorar desde otras secciones.
 - Buscar: abre el campo de texto y el teclado disponible en tu TV. También puedes usar un teclado USB/Bluetooth; no se ha integrado búsqueda por voz propia.
-- En el reproductor, selecciona **Controlar vídeo con mando**. Aparece un puntero blanco: muévelo con la cruceta y pulsa OK sobre Play, pausa o pantalla completa.
+- El reproductor de TV ocupa toda la pantalla y activa el puntero blanco. Muévelo con la cruceta y pulsa OK sobre Play o pausa.
 - Con el puntero cerca del borde superior/inferior, sigue pulsando para desplazar la página. Mantener pulsada una dirección acelera el movimiento.
-- Atrás sale del puntero y devuelve el foco al botón de control. Pulsa Atrás otra vez para regresar. En pantalla completa del proveedor puede ser necesario salir primero de esa pantalla.
+- **Atrás o Menú** abre el panel de controles. **Ver vídeo · ocultar controles** cierra el panel y devuelve el puntero al vídeo. En el panel puedes recargar, cambiar servidor, marcar visto o elegir **Volver a los episodios**. Atrás también cierra el panel si ya estaba abierto. En pantalla completa del proveedor puede ser necesario salir primero de esa pantalla.
+- El modo **Ajustar vídeo a la pantalla** expande el iframe publicado sin cambiar su dirección ni eliminar el contexto de la web. **Mostrar página completa** recupera su diseño original si necesitas controles de la página.
 - Play/Pausa del mando depende del reproductor web: si no responde, usa el puntero sobre el control del vídeo.
 
 ## Pruebas, en este orden
@@ -41,7 +42,7 @@ El SHA-256 del archivo se incluye en `dist/SHA256SUMS.txt`. La firma es de desar
 | 5. Favoritos | Añadir desde ficha, entrar en Mi lista, quitar y volver a añadir | La lista refleja los cambios; persisten al cerrar y abrir la app |
 | 6. Episodios | Abrir un anime con muchos episodios y cambiar de grupo de 50 | Se ven números y controles de paginación; un estreno sin episodios muestra ese estado |
 | 7. Vistos | Marcar y desmarcar uno; cancelar y confirmar Anteriores vistos en otro | El diálogo cuenta las marcas nuevas; solo se marcan anteriores del mismo anime, no el elegido ni posteriores |
-| 8. Reproducción | Abrir un episodio, dejar Reproductor de la web, entrar al control con mando y pulsar Play | Vídeo y audio; sin necesidad de pantalla táctil ni ratón externo |
+| 8. Reproducción y espacio | Abrir un episodio y pulsar Play con el puntero | El reproductor y el puntero usan toda la pantalla, sin la franja de cabecera que aparecía en preview 1; vídeo y audio sin ratón externo |
 | 9. Pantalla completa | Pulsar el control del proveedor con el puntero y salir con Atrás | Entra y sale sin cierre; se puede recuperar el foco de los controles de la app |
 | 10. Servidores | Si falla el predeterminado, probar Elegir servidor | Se cargan las opciones; los fallos permiten volver o usar otra opción. No todos los proveedores están validados |
 | 11. Minuto guardado | Adelantar a 2:00, dejar 10 segundos, pausar, salir y retomar | En un proveedor compatible aparece Minuto guardado y vuelve aproximadamente al punto guardado; hay que pulsar Play |
@@ -66,7 +67,7 @@ No marques como superada la reproducción solo porque carga la página: confirma
 Modelo de TV o dispositivo:
 Versión de Android/Google TV:
 Versión de Android System WebView (si aparece en Ajustes):
-Versión de AnimeFlix: 0.5.0-tv-preview1
+Versión de AnimeFlix: 0.5.0-tv-preview2
 Número de prueba:
 Anime / episodio / servidor:
 Pasos exactos y tecla pulsada:

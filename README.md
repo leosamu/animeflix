@@ -25,7 +25,7 @@ No hace falta instalar Gradle globalmente: el Wrapper descarga su distribución 
 
 ## Compilar en Windows
 
-Para instalar la versión TV ya generada: [guía de instalación y pruebas Android TV](docs/android-tv-pruebas.md). Archivo local `dist/AnimeFlix-TV-0.5.0-preview1.apk`, con firma de desarrollo y Android mínimo 6.0. Es una versión de prueba: compilación/lint y firma verificados, funcionamiento físico aún sin validar. `dist/` está excluido de Git.
+Para instalar la versión TV ya generada: [guía de instalación y pruebas Android TV](docs/android-tv-pruebas.md). Archivo local `dist/AnimeFlix-TV-0.5.0-preview2.apk`, con firma de desarrollo y Android mínimo 6.0. Corrige el espacio insuficiente del reproductor en preview 1 con vídeo a pantalla completa y controles superpuestos. Es una versión de prueba: compilación/lint y firma verificados, pendiente de volver a probar en la TV. `dist/` está excluido de Git.
 
 En este entorno se ha verificado JDK 17.0.21 y Gradle 8.11.1. El SDK local se instala en `.tools/android-sdk` (excluido de Git). Para reutilizar Java y la caché local incluso desde una terminal antigua, ejecuta `powershell -ExecutionPolicy Bypass -File scripts/build.ps1`. El resultado de la compilación se documenta en `docs/environment.md`.
 

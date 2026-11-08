@@ -77,6 +77,22 @@ private fun PlayerScreen(episodeUrl: String, title: String, onBack: () -> Unit, 
             error = "No se pudieron cargar los reproductores. Comprueba la conexión y reintenta."
         } finally { loading = false }
     }
+    if(tv) {
+        TvPlayerLayout(if(activeEpisodeUrl == episodeUrl) title else "Episodio ${activeEpisodeUrl.substringAfterLast('/')}",
+            servers, loading, historyError ?: error, watched, if(position > 0) "Minuto guardado: ${playbackTime(position)}" else null,
+            onMark = { historyModel.mark(activeEpisodeUrl, !watched) }, onBack = onBack) { usePage, index, fit, reload, controlsActive, showMenu ->
+            val startUrl = remember(usePage, reload) { activeEpisodeUrl }
+            val serverUrl = servers.getOrNull(index)?.embedUrl
+            if(usePage || serverUrl != null) key(usePage, startUrl, if(usePage) null else serverUrl, reload) {
+                EmbeddedPlayer(if(usePage) startUrl else serverUrl!!, if(usePage) startUrl else activeEpisodeUrl,
+                    Modifier.fillMaxSize(), originalPage = usePage, tv = true, tvFullScreen = true,
+                    fitVideo = fit, controlsActive = controlsActive, onControlsRequested = showMenu,
+                    onEpisodeChanged = { activeEpisodeUrl = it }, lookupProgress = { url -> history.find { it.episodeUrl == url } },
+                    onProgress = historyModel::progress)
+            }
+        }
+        return
+    }
     Scaffold(topBar = { TopAppBar(title = { Text(if (activeEpisodeUrl == episodeUrl) title else "Episodio ${activeEpisodeUrl.substringAfterLast('/')}") }, navigationIcon = { TextButton(onClick = onBack) { Text("Volver") } }) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -127,7 +143,9 @@ private fun PlayerScreen(episodeUrl: String, title: String, onBack: () -> Unit, 
 @Composable
 private fun EmbeddedPlayer(url: String, episodeUrl: String, modifier: Modifier, originalPage: Boolean = false,
     onEpisodeChanged: (String) -> Unit = {}, lookupProgress: (String) -> WatchEntry? = { null },
-    onProgress: (String, Long, Long) -> Unit = { _, _, _ -> }, tv: Boolean = false) {
+    onProgress: (String, Long, Long) -> Unit = { _, _, _ -> }, tv: Boolean = false,
+    tvFullScreen: Boolean = false, fitVideo: Boolean = true, controlsActive: Boolean = true,
+    onControlsRequested: () -> Unit = {}) {
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
     var fullView by remember { mutableStateOf<View?>(null) }
@@ -138,10 +156,12 @@ private fun EmbeddedPlayer(url: String, episodeUrl: String, modifier: Modifier, 
     val lookup by rememberUpdatedState(lookupProgress)
     val saveProgress by rememberUpdatedState(onProgress)
     val controlsFocus = remember { FocusRequester() }
-    LaunchedEffect(tv) { if(tv) controlsFocus.requestFocus() }
+    val showControls by rememberUpdatedState(onControlsRequested)
+    val fit by rememberUpdatedState(fitVideo)
+    LaunchedEffect(tv) { if(tv && !tvFullScreen) controlsFocus.requestFocus() }
     val webView = remember(url) {
         RemotePlayerWebView(context, tv).apply {
-            onExitControls = { controlsFocus.requestFocus() }
+            onExitControls = { if(tvFullScreen) showControls() else controlsFocus.requestFocus() }
             val progress = WebPlaybackProgress(this, episodeUrl, { lookup(it) }, { page, position, duration -> saveProgress(page, position, duration) })
             progress.install()
             setBackgroundColor(android.graphics.Color.BLACK)
@@ -175,6 +195,7 @@ private fun EmbeddedPlayer(url: String, episodeUrl: String, modifier: Modifier, 
                 override fun onPageStarted(view: WebView, pageUrl: String, favicon: android.graphics.Bitmap?) { progress.navigate(pageUrl) }
                 override fun onPageFinished(view: WebView, pageUrl: String) {
                     if (originalPage && AnimeAv1Episodes.isEpisodeUrl(pageUrl)) episodeChanged(pageUrl)
+                    if(tvFullScreen && originalPage) view.evaluateJavascript(tvVideoLayoutScript(fit), null)
                 }
                 @Deprecated("Required for Android 6 WebView")
                 override fun shouldOverrideUrlLoading(view: WebView, target: String): Boolean {
@@ -204,6 +225,13 @@ private fun EmbeddedPlayer(url: String, episodeUrl: String, modifier: Modifier, 
             else loadDataWithBaseURL(episodeUrl, html, "text/html", "UTF-8", null)
         }
     }
+    LaunchedEffect(webView, tvFullScreen, controlsActive) {
+        if(tvFullScreen && controlsActive) webView.post { webView.controlVideo() }
+        else if(tvFullScreen) webView.releaseControls()
+    }
+    LaunchedEffect(webView, fitVideo) {
+        if(tvFullScreen && originalPage) webView.evaluateJavascript(tvVideoLayoutScript(fitVideo), null)
+    }
     DisposableEffect(webView, owner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
@@ -222,7 +250,9 @@ private fun EmbeddedPlayer(url: String, episodeUrl: String, modifier: Modifier, 
             webView.stopLoading(); webView.loadUrl("about:blank"); webView.removeAllViews(); webView.destroy()
         }
     }
-    Column(modifier) {
+    if(tvFullScreen) {
+        Box(modifier) { AndroidView(factory = { webView }, modifier = Modifier.fillMaxSize()) }
+    } else Column(modifier) {
         if(tv) {
             Button(onClick = { webView.controlVideo() }, modifier = Modifier.focusRequester(controlsFocus)) { Text("Controlar vídeo con mando") }
             Text("Cruceta: mover puntero · OK: pulsar · Atrás: salir del puntero", style = MaterialTheme.typography.bodySmall)

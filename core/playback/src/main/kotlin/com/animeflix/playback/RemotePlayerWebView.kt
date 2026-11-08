@@ -17,7 +17,13 @@ internal class RemotePlayerWebView(context: Context, private val tv: Boolean) : 
     private var yPosition = -1f
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val handledKeys = mutableSetOf<Int>()
-    fun controlVideo() { pointer = true; requestFocus(); invalidate() }
+    fun controlVideo() { pointer = true; isFocusable = true; isFocusableInTouchMode = true; requestFocus(); invalidate() }
+    fun releaseControls() { pointer = false; clearFocus(); isFocusable = false; isFocusableInTouchMode = false; invalidate() }
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        xPosition = (if(xPosition < 0) w / 2f else xPosition).coerceIn(1f, (w - 1).coerceAtLeast(1).toFloat())
+        yPosition = (if(yPosition < 0) h / 2f else yPosition).coerceIn(1f, (h - 1).coerceAtLeast(1).toFloat())
+    }
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (tv && pointer && hasFocus()) {
@@ -45,7 +51,7 @@ internal class RemotePlayerWebView(context: Context, private val tv: Boolean) : 
                     dispatchTouchEvent(down); dispatchTouchEvent(up); down.recycle(); up.recycle()
                 }
             }
-            KeyEvent.KEYCODE_BACK -> { pointer = false; clearFocus(); onExitControls() }
+            KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_MENU -> { pointer = false; clearFocus(); onExitControls() }
             else -> return super.onKeyDown(keyCode, event)
         }
         xPosition = xPosition.coerceIn(1f, (width - 1).coerceAtLeast(1).toFloat())
