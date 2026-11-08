@@ -24,18 +24,27 @@ import coil.compose.AsyncImage
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.animeflix.model.Anime
+import com.animeflix.model.EpisodeAvailability
+import com.animeflix.model.EpisodeInventory
+import com.animeflix.playback.LibraryUpdatesViewModel
+import com.animeflix.playback.LibraryRefreshOnResume
 
 private val colors = darkColorScheme(primary = Color(0xFFFF647C), onPrimary = Color(0xFF330710),
     background = Color(0xFF0D101B), surface = Color(0xFF151A29), surfaceVariant = Color(0xFF242B40))
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AnimeFlixApp(model: CatalogViewModel = viewModel()) {
+fun AnimeFlixApp(model: CatalogViewModel = viewModel(), updates: LibraryUpdatesViewModel = viewModel()) {
     val state by model.state.collectAsStateWithLifecycle()
     val query by model.query.collectAsStateWithLifecycle()
     val section by model.section.collectAsStateWithLifecycle()
     val selectedId by model.selectedId.collectAsStateWithLifecycle()
     val selected = state.items.find { it.id == selectedId }
+    val availability by updates.statuses.collectAsStateWithLifecycle()
+    val inventories by updates.inventories.collectAsStateWithLifecycle()
+    val checking by updates.refreshing.collectAsStateWithLifecycle()
+    val updateError by updates.error.collectAsStateWithLifecycle()
+    LibraryRefreshOnResume(updates, selected?.sourceUrl, section == "favorites", !BuildConfig.DEMO_CATALOG)
     BackHandler(enabled = selectedId != null) { model.open(null) }
     BackHandler(enabled = selectedId == null && section != "catalog") { model.navigate("catalog") }
     MaterialTheme(colorScheme = colors) {
@@ -60,7 +69,9 @@ fun AnimeFlixApp(model: CatalogViewModel = viewModel()) {
                 }
                 when {
                     state.loading || (state.items.isEmpty() && state.refreshing) -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-                    selected != null -> AnimeDetails(selected, onFavorite = { model.toggleFavorite(selected) })
+                    selected != null -> AnimeDetails(selected, availability[selected.sourceUrl.trimEnd('/')],
+                        inventories.find { it.mediaUrl == selected.sourceUrl.trimEnd('/') },
+                        onRefresh = { updates.check(selected.sourceUrl, force = true) }, onFavorite = { model.toggleFavorite(selected) })
                     selectedId != null -> EmptyMessage("Anime no disponible", "Vuelve al catálogo para elegir otro.")
                     section == "history" -> WatchHistoryPanel(state.items)
                     else -> {
@@ -75,6 +86,12 @@ fun AnimeFlixApp(model: CatalogViewModel = viewModel()) {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 12.dp))
                             if (state.refreshing) LinearProgressIndicator(Modifier.fillMaxWidth())
                             if (!BuildConfig.DEMO_CATALOG && section == "catalog") TextButton(onClick = model::retry, enabled = !state.refreshing) { Text("Actualizar catálogo") }
+                            if(section == "favorites") {
+                                Text("Pendientes según tus marcas de visto.", style = MaterialTheme.typography.bodySmall)
+                                if(checking) LinearProgressIndicator(Modifier.fillMaxWidth())
+                                updateError?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                                TextButton(onClick = { updates.refreshFavorites(force = true) }, enabled = !checking && !BuildConfig.DEMO_CATALOG) { Text("Actualizar episodios") }
+                            }
                         }
                         val visible = state.items.filter { (section != "favorites" || it.favorite) &&
                             (it.title.contains(query.trim(), true) || it.synopsis.contains(query.trim(), true)) }
@@ -82,7 +99,7 @@ fun AnimeFlixApp(model: CatalogViewModel = viewModel()) {
                             when { query.isNotBlank() -> "Prueba con otro título o borra la búsqueda."; section == "favorites" -> "Abre una ficha y añade tu primer favorito."; else -> "Actualiza el catálogo para descargar los primeros títulos." })
                         else LazyVerticalGrid(columns = GridCells.Adaptive(155.dp), contentPadding = PaddingValues(20.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                            items(visible, key = { it.id }) { anime -> AnimeCard(anime, onClick = { model.open(anime.id) }) }
+                            items(visible, key = { it.id }) { anime -> AnimeCard(anime, availability[anime.sourceUrl.trimEnd('/')], onClick = { model.open(anime.id) }) }
                             if (state.canLoadMore && section == "catalog") item(span = { GridItemSpan(maxLineSpan) }) {
                                 OutlinedButton(onClick = model::loadMore, enabled = !state.refreshing, modifier = Modifier.fillMaxWidth()) { Text("Cargar más") }
                             }
@@ -95,11 +112,14 @@ fun AnimeFlixApp(model: CatalogViewModel = viewModel()) {
 }
 
 @Composable
-private fun AnimeCard(anime: Anime, onClick: () -> Unit) {
+private fun AnimeCard(anime: Anime, availability: EpisodeAvailability?, onClick: () -> Unit) {
     Card(onClick = onClick, shape = RoundedCornerShape(18.dp)) {
         Poster(anime, Modifier.fillMaxWidth().height(190.dp))
         Column(Modifier.padding(12.dp)) {
             Text(anime.title, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if(anime.favorite) Text(availability?.badge ?: "Pendientes por comprobar", color = if((availability?.pending ?: 0) > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+            availability?.let { Text(it.latestLabel, style = MaterialTheme.typography.bodySmall) }
             Text(if (anime.favorite) "★ En mi lista" else "Ver ficha", style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp))
         }
@@ -119,12 +139,14 @@ private fun Poster(anime: Anime, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun AnimeDetails(anime: Anime, onFavorite: () -> Unit) {
+private fun AnimeDetails(anime: Anime, availability: EpisodeAvailability?, inventory: EpisodeInventory?, onRefresh: () -> Unit, onFavorite: () -> Unit) {
     val uriHandler = LocalUriHandler.current
     var linkError by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         Card(shape = RoundedCornerShape(24.dp)) { Poster(anime, Modifier.fillMaxWidth().height(240.dp)) }
         Text(anime.title, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
+        availability?.let { Text(it.badge, color = MaterialTheme.colorScheme.primary); Text(it.latestLabel) }
+        if(anime.sourceUrl.isNotBlank() && !BuildConfig.DEMO_CATALOG) TextButton(onClick = onRefresh) { Text("Actualizar episodios y fecha") }
         Button(onClick = onFavorite, modifier = Modifier.fillMaxWidth()) { Text(if (anime.favorite) "Quitar de mi lista" else "Añadir a mi lista") }
         Text("Sinopsis", style = MaterialTheme.typography.titleLarge)
         Text(anime.synopsis, style = MaterialTheme.typography.bodyLarge)
@@ -135,7 +157,7 @@ private fun AnimeDetails(anime: Anime, onFavorite: () -> Unit) {
             }, modifier = Modifier.fillMaxWidth()) { Text("Abrir ficha en AnimeAV1") }
             if (linkError) Text("No hay un navegador disponible para abrir la ficha.")
         }
-        EpisodesPanel(anime.sourceUrl)
+        EpisodesPanel(anime.sourceUrl, inventory = inventory)
     }
 }
 

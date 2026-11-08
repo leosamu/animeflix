@@ -31,7 +31,7 @@ class HistoryMigrationTest {
             old.version = 2
         }
         fun open() = Room.databaseBuilder(context, AnimeDatabase::class.java, name)
-            .addMigrations(LocalAnimeRepository.MIGRATION_2_3, LocalAnimeRepository.MIGRATION_3_4).build()
+            .addMigrations(LocalAnimeRepository.MIGRATION_2_3, LocalAnimeRepository.MIGRATION_3_4, LocalAnimeRepository.MIGRATION_4_5).build()
         try {
             val episode = WatchEntity("https://animeav1.com/media/example/1", "https://animeav1.com/media/example", "1", 100)
             withDatabase(open()) { db ->

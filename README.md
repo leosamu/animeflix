@@ -1,5 +1,7 @@
 # AnimeFlix
 
+Móvil **0.8.0** y TV **0.8.0-tv-preview1** añaden [pendientes y última publicación](docs/mi-lista-pendientes.md): Mi lista muestra N pendientes/Al día y la fecha del último episodio. Marcar vistos actualiza el contador; las nuevas publicaciones también aparecen en la ficha. Los datos se guardan sin conexión y se conservan favoritos y progreso mediante migración Room v5. Entrega: `v0.8.0-tv-preview.1`.
+
 Móvil 0.7.0 amplía la reproducción nativa de MP4Upload con preparación de enlaces temporales desde los embeds de Voe, HLS, UPNShare y Byse. Voe y UPNShare han reproducido con Media3 en el móvil; HLS devuelve un rechazo del servidor y Byse requiere verificación humana. Los resultados concretos están en [reproducción nativa](docs/reproduccion-nativa.md). Se conservan pantalla completa, pausa, avance y progreso local. La misma ruta se incorpora a Android TV 0.7.0-tv-preview1; su validación física en TV sigue pendiente.
 
 Código: [leosamu/animeflix](https://github.com/leosamu/animeflix). Entregas: [Releases](https://github.com/leosamu/animeflix/releases). Consulta [cómo guardar y publicar versiones](docs/versiones-github.md) y el [historial de cambios](CHANGELOG.md). El repositorio es privado; las descargas requieren acceso a GitHub.
@@ -27,7 +29,7 @@ No hace falta instalar Gradle globalmente: el Wrapper descarga su distribución 
 
 ## Compilar en Windows
 
-Para instalar la versión TV: [guía de instalación y pruebas Android TV](docs/android-tv-pruebas.md). Archivo local `dist/AnimeFlix-TV-0.7.0-preview1.apk`, con firma de desarrollo y Android mínimo 6.0. Vídeo nativo a pantalla completa, controles Media3 y panel de servidores con mando. Etiqueta `v0.7.0-tv-preview.1`; descargar `AnimeFlix-TV.apk` desde su Release. `dist/` está excluido de Git.
+Para instalar la versión TV: [guía de instalación y pruebas Android TV](docs/android-tv-pruebas.md). Archivo local `dist/AnimeFlix-TV-0.8.0-preview1.apk`, con firma de desarrollo y Android mínimo 6.0. Vídeo nativo a pantalla completa, controles Media3 y panel de servidores con mando. Etiqueta `v0.8.0-tv-preview.1`; descargar `AnimeFlix-TV.apk` desde su Release. `dist/` está excluido de Git.
 
 En este entorno se ha verificado JDK 17.0.21 y Gradle 8.11.1. El SDK local se instala en `.tools/android-sdk` (excluido de Git). Para reutilizar Java y la caché local incluso desde una terminal antigua, ejecuta `powershell -ExecutionPolicy Bypass -File scripts/build.ps1`. El resultado de la compilación se documenta en `docs/environment.md`.
 
@@ -107,10 +109,10 @@ Cubren búsqueda vacía/sin resultados, conservación de pantalla al recrear la 
 
 `HistoryMigrationTest` crea una base v2 temporal dentro de QA, comprueba la migración v3 con favoritos conservados y verifica aperturas/vistos tras cerrar y reabrir la base. `HistoryScreenTest` comprueba el historial y la marca de visto tras recrear la actividad.
 
-Para las pruebas locales sin depender de la web (siete desde 0.5):
+Para las pruebas locales sin depender de la web (nueve desde 0.8):
 
 ```powershell
-.\gradlew.bat :app-mobile:connectedQaAndroidTest '-Pandroid.testInstrumentationRunnerArguments.notClass=com.animeflix.mobile.OriginalEpisodeWebViewTest,com.animeflix.mobile.RemoteEpisodeSmokeTest,com.animeflix.mobile.NativePlaybackSmokeTest,com.animeflix.mobile.OmaeServerProbeTest,com.animeflix.mobile.IntegratedProviderTest,com.animeflix.mobile.TvNativePlaybackTest'
+.\gradlew.bat :app-mobile:connectedQaAndroidTest '-Pandroid.testInstrumentationRunnerArguments.notClass=com.animeflix.mobile.OriginalEpisodeWebViewTest,com.animeflix.mobile.RemoteEpisodeSmokeTest,com.animeflix.mobile.NativePlaybackSmokeTest,com.animeflix.mobile.OmaeServerProbeTest,com.animeflix.mobile.IntegratedProviderTest,com.animeflix.mobile.TvNativePlaybackTest,com.animeflix.mobile.RemoteInventorySmokeTest'
 ```
 
 `RemoteEpisodeSmokeTest` consulta la ficha y el episodio 1 de One Piece para comprobar desde Android la lectura real de episodios y servidores; requiere conexión y disponibilidad de AnimeAV1. `OriginalEpisodeWebViewTest` comprueba que la página original carga su iframe dentro de la pantalla de reproducción. `:core:data:testDebugUnitTest` prueba también ordenación, deduplicación, idioma, esquema HTTPS y aislamiento de los enlaces de descarga. Estas pruebas no acreditan que un vídeo llegue a reproducirse: eso se valida manualmente en el dispositivo.

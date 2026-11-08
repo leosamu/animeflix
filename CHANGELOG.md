@@ -1,5 +1,13 @@
 # Historial de versiones
 
+## v0.8.0-tv-preview.1 — 2026-11-08
+
+- Móvil 0.8.0 (14) y TV 0.8.0-tv-preview1 (15): Mi lista muestra el número de episodios publicados sin marcar como vistos, Al día o estado sin comprobar.
+- Último episodio y fecha real de publicación en favoritos, ficha y tarjetas con información guardada. Fecha no disponible cuando falta el dato; no se reutiliza la actualización de la ficha.
+- Comprobación al entrar/regresar, caché de 15 minutos, actualización manual y conservación de información sin conexión. Los vistos y Anteriores vistos actualizan el indicador inmediatamente.
+- La lista de episodios de la ficha recibe los cambios del mismo inventario, para poder abrir una nueva publicación detectada.
+- Migración Room 4→5 sin borrar favoritos, historial, vistos o progreso; migraciones antiguas conservadas. Datos independientes por dispositivo.
+
 ## v0.7.0-tv-preview.1 — 2026-11-08
 
 - Android TV usa reproducción nativa por defecto con los mismos resolvedores de MP4Upload, Voe, UPNShare y Byse validados en móvil.

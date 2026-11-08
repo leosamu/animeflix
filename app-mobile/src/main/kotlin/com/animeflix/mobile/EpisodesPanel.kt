@@ -13,10 +13,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.animeflix.model.Episode
+import com.animeflix.model.EpisodeInventory
 import com.animeflix.model.playbackTime
 
 @Composable
-fun EpisodesPanel(mediaUrl: String, model: EpisodesViewModel = viewModel(), historyModel: WatchHistoryViewModel = viewModel()) {
+fun EpisodesPanel(mediaUrl: String, model: EpisodesViewModel = viewModel(), historyModel: WatchHistoryViewModel = viewModel(), inventory: EpisodeInventory? = null) {
     val state by model.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val history by historyModel.entries.collectAsStateWithLifecycle()
@@ -25,7 +26,9 @@ fun EpisodesPanel(mediaUrl: String, model: EpisodesViewModel = viewModel(), hist
     val lastOpened = watched.values.filter { it.openedAt > 0 }.maxByOrNull { it.openedAt }
     var group by rememberSaveable(mediaUrl) { mutableIntStateOf(0) }
     var previousTarget by remember(mediaUrl) { mutableStateOf<Episode?>(null) }
-    LaunchedEffect(mediaUrl) { model.load(mediaUrl) }
+    LaunchedEffect(mediaUrl, inventory) {
+        if(inventory?.mediaUrl == mediaUrl.trimEnd('/')) model.useInventory(inventory) else model.load(mediaUrl)
+    }
     Text("Episodios", style = MaterialTheme.typography.titleLarge)
     historyError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     lastOpened?.let { entry ->
@@ -36,7 +39,7 @@ fun EpisodesPanel(mediaUrl: String, model: EpisodesViewModel = viewModel(), hist
     }
     when {
         mediaUrl.isBlank() -> Text("No hay episodios en este título de demostración.")
-        state.mediaUrl != mediaUrl || state.loading -> CircularProgressIndicator()
+        state.mediaUrl != mediaUrl.trimEnd('/') || state.loading -> CircularProgressIndicator()
         state.error -> {
             Text("No se pudieron cargar los episodios.")
             OutlinedButton(onClick = { model.load(mediaUrl, force = true) }) { Text("Reintentar episodios") }

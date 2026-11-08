@@ -6,8 +6,28 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jsoup.Jsoup
 import java.net.URI
+import com.animeflix.model.EpisodeInventory
+import java.io.IOException
+import java.text.SimpleDateFormat
+import java.text.ParsePosition
+import java.util.Locale
+import kotlinx.coroutines.CancellationException
 
 class AnimeAv1Episodes {
+    suspend fun inventory(mediaUrl: String, previous: EpisodeInventory? = null): EpisodeInventory = withContext(Dispatchers.IO) {
+        require(isMediaUrl(mediaUrl))
+        val base = mediaUrl.trimEnd('/')
+        val html = fetch(base)
+        val episodes = parseEpisodes(html, base)
+        if(!html.contains("episodes:[") && episodes.isEmpty()) throw IOException("No se reconoce la lista de episodios")
+        val latest = episodes.lastOrNull()
+        var published = previous?.takeIf { it.mediaUrl == base && it.episodes.lastOrNull()?.pageUrl == latest?.pageUrl }?.latestPublishedAt
+        if(latest != null && published == null) {
+            try { published = parsePublishedAt(fetch(latest.pageUrl), latest.number) }
+            catch(failure: Exception) { if(failure is CancellationException) throw failure }
+        }
+        EpisodeInventory(base, episodes, published, System.currentTimeMillis())
+    }
     suspend fun episodes(mediaUrl: String): List<Episode> = withContext(Dispatchers.IO) {
         require(isMediaUrl(mediaUrl))
         parseEpisodes(fetch(mediaUrl), mediaUrl)
@@ -22,6 +42,18 @@ class AnimeAv1Episodes {
         .userAgent("AnimeFlix/0.3 (Android client)").timeout(20_000).maxBodySize(3_000_000).get().outerHtml()
 
     companion object {
+        internal fun parsePublishedAt(html: String, number: String): Long? {
+            val block = html.substringAfter("episode:{", "").substringBefore("},embeds:")
+            val actual = Regex("(?:^|,)number:([0-9]+(?:\\.[0-9]+)?)(?=[,}])").find(block)?.groupValues?.get(1) ?: return null
+            if(actual.toBigDecimal().compareTo(number.toBigDecimal()) != 0) return null
+            val raw = Regex("publishedAt:\"([^\"]+)\"").find(block)?.groupValues?.get(1) ?: return null
+            val parts = Regex("(\\d{4}-\\d{2}-\\d{2})[T ](\\d{2}:\\d{2}:\\d{2})(?:\\.(\\d{1,9}))?(Z|[+-]\\d{2}(?::?\\d{2})?)").matchEntire(raw) ?: return null
+            val zone = parts.groupValues[4].let { if(it == "Z") "+0000" else it.replace(":", "").padEnd(5, '0') }
+            val normalized = "${parts.groupValues[1]}T${parts.groupValues[2]}.${parts.groupValues[3].take(3).padEnd(3,'0')}$zone"
+            val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ", Locale.US).apply { isLenient = false }
+            val position = ParsePosition(0)
+            return format.parse(normalized, position)?.time?.takeIf { it > 0 && position.index == normalized.length }
+        }
         fun isMediaUrl(url: String): Boolean = Regex("https://animeav1\\.com/media/[a-zA-Z0-9_-]+/?").matches(url)
         fun isEpisodeUrl(url: String): Boolean = Regex("https://animeav1\\.com/media/[a-zA-Z0-9_-]+/[0-9]+(?:\\.[0-9]+)?").matches(url)
         fun isHttpsUrl(url: String): Boolean = runCatching {

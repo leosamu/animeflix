@@ -1,10 +1,10 @@
-# AnimeFlix Android TV — 0.7.0 preview 1
+# AnimeFlix Android TV — 0.8.0 preview 1
 
 Esta versión usa reproducción nativa con Media3 por defecto. Compilación y análisis estático verificados; el modo TV compartido se comprueba en el móvil QA en horizontal, pero no se ha probado en un Android TV físico ni en un emulador TV. No está publicada en Google Play. APK firmado con la misma clave de desarrollo de las entregas TV anteriores.
 
 ## Archivo e instalación
 
-Archivo local: `dist/AnimeFlix-TV-0.7.0-preview1.apk`. En GitHub, descargar `AnimeFlix-TV.apk` de la etiqueta `v0.7.0-tv-preview.1`. Android 6.0 o posterior (API 23), Android TV/Google TV y conexión a internet para el catálogo y el vídeo. Dispositivos basados en Android que no sean Android TV/Google TV pueden no mostrar el acceso de TV; Fire TV no está validado.
+Archivo local: `dist/AnimeFlix-TV-0.8.0-preview1.apk`. En GitHub, descargar `AnimeFlix-TV.apk` de la etiqueta `v0.8.0-tv-preview.1`. Android 6.0 o posterior (API 23), Android TV/Google TV y conexión a internet para el catálogo y el vídeo. Dispositivos basados en Android que no sean Android TV/Google TV pueden no mostrar el acceso de TV; Fire TV no está validado.
 
 1. Copia el APK al dispositivo por USB o mediante tu herramienta habitual de transferencia.
 2. Ábrelo con un gestor de archivos y permite instalar aplicaciones desde ese gestor cuando Android lo solicite.
@@ -18,7 +18,7 @@ adb install -r AnimeFlix-TV.apk
 adb shell am start -n com.animeflix.tv/.MainActivity
 ```
 
-El SHA-256 se incluye en `SHA256SUMS.txt` de esa Release y en `dist/tv-0.7.0-preview1/`. La firma es de desarrollo: las futuras actualizaciones de prueba deben mantener la misma firma. Una futura distribución con firma de producción puede requerir un procedimiento de migración. El repositorio es privado: los enlaces de descarga requieren acceso a GitHub.
+El SHA-256 se incluye en `SHA256SUMS.txt` de esa Release y en `dist/library-0.8.0/`. La firma es de desarrollo: las futuras actualizaciones de prueba deben mantener la misma firma. Una futura distribución con firma de producción puede requerir un procedimiento de migración. El repositorio es privado: los enlaces de descarga requieren acceso a GitHub.
 
 ## Cómo usar el mando
 
@@ -51,6 +51,7 @@ El SHA-256 se incluye en `SHA256SUMS.txt` de esa Release y en `dist/tv-0.7.0-pre
 | 13. Segundo plano | Mientras reproduce, pulsar Inicio; regresar después | No queda audio inesperado en segundo plano; al cerrar el reproductor se libera el vídeo |
 | 14. Sin conexión | Desconectar la red después de cargar títulos y volver a abrir la app | Se conserva el catálogo local; los fallos de red no borran favoritos, historial, vistos ni progreso |
 | 15. Tamaño de pantalla | Revisar textos, botones y márgenes desde la distancia habitual | Contenido legible, sin recortes por los bordes de la TV |
+| 16. Pendientes y fecha | Abrir Mi lista, comprobar el último episodio/fecha, marcar un capítulo como visto y regresar; usar Actualizar episodios | El contador baja al marcar visto y sube al desmarcar. Todos vistos muestra Al día. La fecha corresponde al último episodio; si falta, Fecha no disponible. Nuevas publicaciones aparecen también en la ficha |
 
 No marques como superada la reproducción solo porque carga la página: confirma movimiento del vídeo y audio. Tampoco el progreso solo por ver un tiempo: cierra y retoma para comprobar la restauración.
 
@@ -68,7 +69,7 @@ No marques como superada la reproducción solo porque carga la página: confirma
 Modelo de TV o dispositivo:
 Versión de Android/Google TV:
 Versión de Android System WebView (si aparece en Ajustes):
-Versión de AnimeFlix: 0.7.0-tv-preview1
+Versión de AnimeFlix: 0.8.0-tv-preview1
 Número de prueba:
 Anime / episodio / servidor:
 Pasos exactos y tecla pulsada:

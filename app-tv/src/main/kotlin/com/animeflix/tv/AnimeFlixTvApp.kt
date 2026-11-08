@@ -29,7 +29,7 @@ import com.animeflix.model.*
 import com.animeflix.playback.*
 
 @Composable
-fun AnimeFlixTvApp(catalog: CatalogViewModel = viewModel(), history: WatchHistoryViewModel = viewModel(), episodes: EpisodesViewModel = viewModel()) {
+fun AnimeFlixTvApp(catalog: CatalogViewModel = viewModel(), history: WatchHistoryViewModel = viewModel(), episodes: EpisodesViewModel = viewModel(), updates: LibraryUpdatesViewModel = viewModel()) {
     val state by catalog.state.collectAsStateWithLifecycle()
     val section by catalog.section.collectAsStateWithLifecycle()
     val query by catalog.query.collectAsStateWithLifecycle()
@@ -38,6 +38,11 @@ fun AnimeFlixTvApp(catalog: CatalogViewModel = viewModel(), history: WatchHistor
     val historyError by history.error.collectAsStateWithLifecycle()
     val episodeState by episodes.state.collectAsStateWithLifecycle()
     val selected = state.items.find { it.id == selectedId }
+    val availability by updates.statuses.collectAsStateWithLifecycle()
+    val inventories by updates.inventories.collectAsStateWithLifecycle()
+    val checking by updates.refreshing.collectAsStateWithLifecycle()
+    val updateError by updates.error.collectAsStateWithLifecycle()
+    LibraryRefreshOnResume(updates, selected?.sourceUrl, section == "favorites")
     val context = LocalContext.current
     val firstFocus = remember { FocusRequester() }
     val listState = rememberLazyListState()
@@ -47,7 +52,10 @@ fun AnimeFlixTvApp(catalog: CatalogViewModel = viewModel(), history: WatchHistor
     var bulkTarget by remember { mutableStateOf<Episode?>(null) }
     fun play(url: String) { context.startActivity(Intent(context, PlayerActivity::class.java).putExtra("episodeUrl", url)
         .putExtra("title", "Episodio ${url.substringAfterLast('/')}").putExtra("tvMode", true)) }
-    LaunchedEffect(selected?.sourceUrl) { selected?.let { episodes.load(it.sourceUrl) } }
+    val inventory = inventories.find { it.mediaUrl == selected?.sourceUrl?.trimEnd('/') }
+    LaunchedEffect(selected?.sourceUrl, inventory) { selected?.let {
+        if(inventory != null) episodes.useInventory(inventory) else episodes.load(it.sourceUrl)
+    } }
     LaunchedEffect(selectedId, section) { firstFocus.requestFocus() }
     BackHandler(enabled = selectedId != null || section != "catalog") {
         if (selectedId != null) catalog.open(null) else catalog.navigate("catalog")
@@ -76,7 +84,7 @@ fun AnimeFlixTvApp(catalog: CatalogViewModel = viewModel(), history: WatchHistor
                 state.loading -> Text("Cargando catálogo…")
                 selected != null -> {
                     val current = selected
-                    val seen = marks.filter { it.mediaUrl == current.sourceUrl }.associateBy { it.episodeUrl }
+                    val seen = marks.filter { it.mediaUrl == current.sourceUrl.trimEnd('/') }.associateBy { it.episodeUrl }
                     val last = seen.values.filter { it.openedAt > 0 }.maxByOrNull { it.openedAt }
                     LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(8.dp)) {
                         item {
@@ -84,6 +92,8 @@ fun AnimeFlixTvApp(catalog: CatalogViewModel = viewModel(), history: WatchHistor
                                 AsyncImage(current.posterUrl, null, Modifier.width(120.dp).height(170.dp), contentScale = ContentScale.Crop)
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                     Text(current.title, style = MaterialTheme.typography.headlineMedium)
+                                    availability[current.sourceUrl.trimEnd('/')]?.let { Text(it.badge); Text(it.latestLabel) }
+                                    Button(onClick = { updates.check(current.sourceUrl, force = true) }, enabled = !checking) { Text("Actualizar episodios y fecha") }
                                     Text(current.synopsis)
                                     Button(onClick = { catalog.toggleFavorite(current) }) { Text(if (current.favorite) "Quitar de mi lista" else "Añadir a mi lista") }
                                 }
@@ -93,7 +103,7 @@ fun AnimeFlixTvApp(catalog: CatalogViewModel = viewModel(), history: WatchHistor
                             Button(onClick = { play(entry.episodeUrl) }) { Text("Retomar episodio ${entry.number}" + if(entry.positionMs > 0) " · ${playbackTime(entry.positionMs)}" else "") }
                         } }
                         when {
-                            episodeState.mediaUrl != current.sourceUrl || episodeState.loading -> item { Text("Cargando episodios…") }
+                            episodeState.mediaUrl != current.sourceUrl.trimEnd('/') || episodeState.loading -> item { Text("Cargando episodios…") }
                             episodeState.error -> item { Button(onClick = { episodes.load(current.sourceUrl, true) }) { Text("Reintentar episodios") } }
                             episodeState.items.isEmpty() -> item { Text("Este título todavía no tiene episodios publicados.") }
                             else -> {
@@ -139,6 +149,13 @@ fun AnimeFlixTvApp(catalog: CatalogViewModel = viewModel(), history: WatchHistor
                     val visible = state.items.filter { (section != "favorites" || it.favorite) &&
                         (it.title.contains(query.trim(), true) || it.synopsis.contains(query.trim(), true)) }
                     Text(if(section == "favorites") "Mi lista" else "Explorar AnimeAV1", style = MaterialTheme.typography.headlineMedium)
+                    if(section == "favorites") {
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Button(onClick = { updates.refreshFavorites(force = true) }, enabled = !checking) { Text(if(checking) "Comprobando episodios…" else "Actualizar episodios") }
+                            Text("Pendientes según tus marcas de visto.")
+                        }
+                        updateError?.let { Text(it) }
+                    }
                     if(query.isNotBlank()) Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("Búsqueda: $query")
                         Button(onClick = { catalog.search("") }) { Text("Borrar búsqueda") }
@@ -152,6 +169,9 @@ fun AnimeFlixTvApp(catalog: CatalogViewModel = viewModel(), history: WatchHistor
                                     AsyncImage(anime.posterUrl, null, Modifier.width(76.dp).height(108.dp), contentScale = ContentScale.Crop)
                                     Column(Modifier.weight(1f)) {
                                         Text(anime.title + if(anime.favorite) " ★" else "", style = MaterialTheme.typography.titleLarge)
+                                        val info = availability[anime.sourceUrl.trimEnd('/')]
+                                        if(anime.favorite) Text(info?.badge ?: "Pendientes por comprobar", color = MaterialTheme.colorScheme.primary)
+                                        info?.let { Text(it.latestLabel) }
                                         Text(anime.synopsis, maxLines = 3, overflow = TextOverflow.Ellipsis)
                                     }
                                 }

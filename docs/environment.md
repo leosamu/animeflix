@@ -171,3 +171,11 @@ Android TV 0.7.0-tv-preview1 (código 13, etiqueta `v0.7.0-tv-preview.1`) activa
 `TvNativePlaybackTest` completó tres pruebas sin fallos en el móvil QA: MP4Upload con vídeo y panel sin reinicio, Voe nativo, y entrada/salida del puntero de Byse con foco de vuelta al botón. Se comprueba horizontal y foco del servidor seleccionado. La prueba Byse mueve el puntero y pulsa Atrás, sin pulsar ni resolver la verificación humana. La regresión de reproducción móvil también pasó durante esta fase. No se ha conectado, instalado ni probado un Android TV físico, ni se ha ejecutado un emulador TV.
 
 Compilación y lint móvil/TV, cinco pruebas JVM de datos/resolver, compilación de QA y scripts de selección de fuentes/diseño TV completados correctamente. El APK TV se empaqueta con guía y SHA-256 y se verifica su certificado público contra la preview 2 antes de publicarlo. Los datos locales TV continúan separados de los del móvil.
+
+## Mi lista 0.8.0 — 2026-11-08
+
+Indicadores de pendientes y fecha de última publicación incorporados a móvil 0.8.0 (14) y TV 0.8.0-tv-preview1 (15). Los pendientes se calculan con las URLs de episodios publicados y las marcas explícitas de visto, no con la mayor numeración menos un contador. Room v5 conserva los datos y añade un inventario de episodios por anime; se usa también para actualizar la lista de reproducción de la ficha.
+
+Ocho pruebas JVM de datos/modelo superadas, nueve comprobaciones QA locales de interfaz/historial/migración sin errores y una consulta real adicional de Omae gotoki: se obtuvo y guardó el `publishedAt` del último episodio. La interfaz comprobó cambios de pendientes a Al día, desmarcado, recreación y aparición de un episodio nuevo sin volver a abrir la ficha. Se cubren asimismo enlaces con barra final. No se utiliza el `updatedAt` de la ficha ni se inventa una fecha cuando falta.
+
+Compilación y lint móvil/TV verificados; firmas de actualización comprobadas contra 0.7.0. La versión móvil se instala con conservación de datos. La revisión física de la entrega TV continúa pendiente del usuario. Detalles en `docs/mi-lista-pendientes.md`.

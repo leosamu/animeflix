@@ -8,6 +8,7 @@ import com.animeflix.model.Anime
 import com.animeflix.model.AnimeRepository
 import com.animeflix.model.WatchEntry
 import com.animeflix.model.Episode
+import com.animeflix.model.EpisodeInventory
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -50,13 +51,32 @@ interface WatchDao {
     @Transaction suspend fun progress(entry: WatchEntity) { insert(entry); updateProgress(entry.episodeUrl, entry.positionMs, entry.durationMs) }
 }
 
-@Database(entities = [AnimeEntity::class, WatchEntity::class], version = 4, exportSchema = true)
+@Entity(tableName = "episode_inventory")
+data class InventoryEntity(@PrimaryKey val mediaUrl: String, val episodeUrls: String, val latestPublishedAt: Long?, val checkedAt: Long)
+
+@Dao
+interface InventoryDao {
+    @Query("SELECT * FROM episode_inventory") fun observeAll(): Flow<List<InventoryEntity>>
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun put(inventory: InventoryEntity)
+}
+
+@Database(entities = [AnimeEntity::class, WatchEntity::class, InventoryEntity::class], version = 5, exportSchema = true)
 abstract class AnimeDatabase : RoomDatabase() {
     abstract fun animeDao(): AnimeDao
     abstract fun watchDao(): WatchDao
+    abstract fun inventoryDao(): InventoryDao
 }
 
-class LocalAnimeRepository private constructor(private val dao: AnimeDao, private val watchDao: WatchDao) : AnimeRepository {
+class LocalAnimeRepository private constructor(private val dao: AnimeDao, private val watchDao: WatchDao, private val inventoryDao: InventoryDao) : AnimeRepository {
+    fun observeInventories(): Flow<List<EpisodeInventory>> = inventoryDao.observeAll().map { rows -> rows.map { row ->
+        EpisodeInventory(row.mediaUrl, row.episodeUrls.lineSequence().filter { AnimeAv1Episodes.isEpisodeUrl(it) }
+            .map { Episode(it.substringAfterLast('/'), it) }.toList(), row.latestPublishedAt, row.checkedAt)
+    } }
+    suspend fun cacheInventory(inventory: EpisodeInventory) {
+        require(AnimeAv1Episodes.isMediaUrl(inventory.mediaUrl) && inventory.checkedAt > 0)
+        require(inventory.episodes.all { AnimeAv1Episodes.isEpisodeUrl(it.pageUrl) && it.pageUrl.substringBeforeLast('/') == inventory.mediaUrl && it.number == it.pageUrl.substringAfterLast('/') })
+        inventoryDao.put(InventoryEntity(inventory.mediaUrl, inventory.episodes.distinctBy { it.pageUrl }.sortedBy { it.number.toBigDecimal() }.joinToString("\n") { it.pageUrl }, inventory.latestPublishedAt, inventory.checkedAt))
+    }
     fun observeWatchHistory(): Flow<List<WatchEntry>> = watchDao.observeAll().map { rows -> rows.map {
         WatchEntry(it.episodeUrl, it.mediaUrl, it.number, it.openedAt, it.watched, it.positionMs, it.durationMs)
     } }
@@ -94,6 +114,11 @@ class LocalAnimeRepository private constructor(private val dao: AnimeDao, privat
         AnimeEntity("demo-2", "Guardianes del alba", "Una aventura de ejemplo, sin contenido de vídeo.")
     ))
     companion object {
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS episode_inventory (mediaUrl TEXT NOT NULL, episodeUrls TEXT NOT NULL, latestPublishedAt INTEGER, checkedAt INTEGER NOT NULL, PRIMARY KEY(mediaUrl))")
+            }
+        }
         val MIGRATION_3_4 = object : Migration(3, 4) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE watch_history ADD COLUMN positionMs INTEGER NOT NULL DEFAULT 0")
@@ -113,7 +138,7 @@ class LocalAnimeRepository private constructor(private val dao: AnimeDao, privat
                         db.execSQL("ALTER TABLE anime ADD COLUMN posterUrl TEXT NOT NULL DEFAULT ''")
                         db.execSQL("ALTER TABLE anime ADD COLUMN sourceUrl TEXT NOT NULL DEFAULT ''")
                     }
-                }, MIGRATION_2_3, MIGRATION_3_4).build().let { LocalAnimeRepository(it.animeDao(), it.watchDao()) }.also { instance = it }
+                }, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build().let { LocalAnimeRepository(it.animeDao(), it.watchDao(), it.inventoryDao()) }.also { instance = it }
         }
     }
 }
