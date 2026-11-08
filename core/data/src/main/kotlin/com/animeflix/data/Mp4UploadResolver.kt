@@ -8,7 +8,8 @@ import org.jsoup.parser.Parser
 import java.io.IOException
 import java.net.URI
 
-data class ResolvedVideo(val url: String, val referer: String)
+data class ResolvedVideo(val url: String, val referer: String, val userAgent: String = Mp4UploadResolver.USER_AGENT,
+    val cookie: String? = null, val mimeType: String? = null, val origin: String? = null)
 
 /** Reads the MP4 configuration published in the provider's embed page. No DRM or challenge bypass. */
 class Mp4UploadResolver {

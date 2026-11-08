@@ -1,5 +1,15 @@
 # Historial de versiones
 
+## Móvil 0.7.0 — 2026-11-08
+
+- Preparación de fuentes temporales mediante el embed del servidor, con una sola selección e idioma aislados y posterior reproducción con Media3. Primer servidor validado: Voe.
+- Motor HLS de Media3 y conservación del agente, Referer, cookies y Origin observados al resolver la fuente.
+- Los enlaces permanecen en memoria; reintentar obtiene una fuente nueva. Tiempo límite y mensaje de error cuando el servidor no entrega vídeo compatible.
+- Cada cambio de servidor tiene su propio estado para evitar que una petición anterior cancelada oculte el reproductor nuevo.
+- Pruebas integradas en paquete QA separado para HLS, UPNShare, Voe y Byse en SUB/DUB, con primer fotograma, progreso y pantalla completa cuando hay vídeo. Audio pendiente de revisión manual.
+- Sin activar todavía la ruta nativa en Android TV.
+- HLS/Zilla entrega manifiesto pero rechaza la descarga nativa con 403. Byse abre un iframe en n1mwq.org que solicita verificación humana; se presenta el recuadro y se espera la intervención manual, sin automatizarla.
+
 ## Móvil 0.6.2 — 2026-11-08
 
 - Corrige el regreso de pantalla completa: vuelve explícitamente a vertical para evitar que se recorten controles en horizontal.

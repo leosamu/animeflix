@@ -46,6 +46,8 @@ jobs:
         run: bash ./gradlew --no-daemon :core:data:testDebugUnitTest :app-mobile:assembleDebug :app-mobile:lintDebug :app-tv:assembleDebug :app-tv:lintDebug :app-mobile:compileQaAndroidTestKotlin
       - name: Check TV iframe layout
         run: node scripts/test-tv-video-layout.cjs
+      - name: Check provider media selection
+        run: node scripts/test-provider-source.cjs
       - name: Save verification reports
         if: always()
         uses: actions/upload-artifact@v4

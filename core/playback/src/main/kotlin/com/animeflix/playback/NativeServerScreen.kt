@@ -47,10 +47,12 @@ internal fun NativeServerScreen(title: String, episodeUrl: String, servers: List
     onMark: () -> Unit, onBack: () -> Unit, onWeb: () -> Unit) {
     var selectedUrl by rememberSaveable(episodeUrl) { mutableStateOf<String?>(null) }
     val selected = servers.find { it.embedUrl == selectedUrl } ?: servers.firstOrNull { Mp4UploadResolver.supports(it.embedUrl) }
-    var video by remember(episodeUrl) { mutableStateOf<ResolvedVideo?>(null) }
-    var resolving by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
+        ?: servers.firstOrNull { ProviderPolicy.supports(it.embedUrl) }
     var retry by remember { mutableIntStateOf(0) }
+    // An old cancelled request must not clear the state of a newly selected provider.
+    var video by remember(episodeUrl, selected?.embedUrl, retry) { mutableStateOf<ResolvedVideo?>(null) }
+    var resolving by remember(episodeUrl, selected?.embedUrl, retry) { mutableStateOf(false) }
+    var error by remember(episodeUrl, selected?.embedUrl, retry) { mutableStateOf<String?>(null) }
     var fullScreen by rememberSaveable(episodeUrl) { mutableStateOf(false) }
     val activity = LocalContext.current.findPlayerActivity()
     BackHandler(enabled = fullScreen) { fullScreen = false }
@@ -76,9 +78,12 @@ internal fun NativeServerScreen(title: String, episodeUrl: String, servers: List
     }
     LaunchedEffect(episodeUrl, selected?.embedUrl, retry) {
         video = null; error = null
+        resolving = false
         if(selected == null) return@LaunchedEffect
         if(!Mp4UploadResolver.supports(selected.embedUrl)) {
-            error = "Este servidor todavía no es compatible con reproducción nativa. Prueba MP4Upload."; return@LaunchedEffect
+            if(ProviderPolicy.supports(selected.embedUrl)) resolving = true
+            else error = "Este servidor todavía no es compatible con reproducción nativa. Elige otro servidor."
+            return@LaunchedEffect
         }
         resolving = true
         try { video = Mp4UploadResolver().resolve(selected) }
@@ -97,9 +102,17 @@ internal fun NativeServerScreen(title: String, episodeUrl: String, servers: List
                 servers.forEach { server -> FilterChip(selected = selected?.embedUrl == server.embedUrl,
                     onClick = { selectedUrl = server.embedUrl }, label = { Text(server.name) }) }
             }
+            if(android.net.Uri.parse(selected?.embedUrl.orEmpty()).host in setOf("player.zilla-networks.com", "byselapuix.com"))
+                Text("Servidor en pruebas. Si falla, elige Voe, UPNShare o MP4Upload.", style = MaterialTheme.typography.bodySmall)
             if(loading || resolving) LinearProgressIndicator(Modifier.fillMaxWidth())
             (error ?: serverError)?.let { Text(it); TextButton(onClick = { retry++ }) { Text("Reintentar") } }
             if(!loading && selected == null) Text("Este episodio no ofrece un servidor nativo compatible. Puedes probar el modo web.")
+            }
+            if(resolving && selected != null && ProviderPolicy.supports(selected.embedUrl)) {
+                key(episodeUrl, selected.embedUrl, retry) {
+                    ProviderVideoResolver(selected, episodeUrl, onResolved = { video = it; resolving = false },
+                        onFailure = { error = it; resolving = false })
+                }
             }
             video?.let { source -> key(episodeUrl, source.url, retry) {
                 NativeVideo(source, episodeUrl, position, Modifier.fillMaxWidth().weight(1f), onProgress, onRetry = { retry++ },
@@ -124,17 +137,22 @@ private fun NativeVideo(source: ResolvedVideo, episodeUrl: String, resumePositio
     val save by rememberUpdatedState(onProgress)
     val changeFullScreen by rememberUpdatedState(onFullScreen)
     var failure by remember { mutableStateOf(false) }
+    var rejected by remember { mutableStateOf(false) }
     var played by remember { mutableStateOf(false) }
     var firstFrame by remember { mutableStateOf(false) }
     var buffering by remember { mutableStateOf(true) }
     val player = remember(source.url, episodeUrl) {
-        val http = DefaultHttpDataSource.Factory().setUserAgent(Mp4UploadResolver.USER_AGENT)
+        val http = DefaultHttpDataSource.Factory().setUserAgent(source.userAgent)
             .setConnectTimeoutMs(15_000).setReadTimeoutMs(20_000)
-            .setDefaultRequestProperties(mapOf("Referer" to source.referer))
+            .setDefaultRequestProperties(buildMap {
+                put("Referer", source.referer)
+                source.cookie?.takeIf { it.isNotBlank() }?.let { put("Cookie", it) }
+                source.origin?.let { put("Origin", it) }
+            })
         ExoPlayer.Builder(context).setMediaSourceFactory(DefaultMediaSourceFactory(http)).build().apply {
             setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
             setHandleAudioBecomingNoisy(true)
-            setMediaItem(MediaItem.fromUri(source.url))
+            setMediaItem(MediaItem.Builder().setUri(source.url).setMimeType(source.mimeType).build())
             if(resumePosition > 0) seekTo(resumePosition)
             prepare(); playWhenReady = lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
         }
@@ -152,7 +170,8 @@ private fun NativeVideo(source: ResolvedVideo, episodeUrl: String, resumePositio
             override fun onPlayerError(error: PlaybackException) {
                 failure = true
                 val httpError = error.cause as? androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException
-                Log.w("AnimeFlixNative", "Fallo: ${error.errorCodeName}; HTTP=${httpError?.responseCode}; causa=${error.cause?.javaClass?.simpleName}")
+                rejected = httpError?.responseCode == 403
+                Log.w("AnimeFlixNative", "Fallo: ${error.errorCodeName}; HTTP=${httpError?.responseCode}; host=${httpError?.dataSpec?.uri?.host}; causa=${error.cause?.javaClass?.simpleName}")
             }
         }
         player.addListener(listener)
@@ -166,7 +185,8 @@ private fun NativeVideo(source: ResolvedVideo, episodeUrl: String, resumePositio
     Column(modifier) {
         if(buffering && !failure) LinearProgressIndicator(Modifier.fillMaxWidth())
         if(failure) {
-            Text("No se pudo reproducir el vídeo. El enlace puede haber caducado o el servidor no responder.")
+            Text(if(rejected) "Este servidor ha rechazado la reproducción. Prueba otro servidor o el modo web."
+                else "No se pudo reproducir el vídeo. El enlace puede haber caducado o el servidor no responder.")
             TextButton(onClick = onRetry) { Text("Obtener enlace nuevo") }
         }
         AndroidView(factory = { PlayerView(it).apply {

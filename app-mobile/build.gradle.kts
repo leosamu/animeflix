@@ -3,7 +3,7 @@ android {
     namespace = "com.animeflix.mobile"
     compileSdk = 35
     defaultConfig {
-        applicationId = "com.animeflix.mobile"; minSdk = 23; targetSdk = 35; versionCode = 11; versionName = "0.6.2"
+        applicationId = "com.animeflix.mobile"; minSdk = 23; targetSdk = 35; versionCode = 12; versionName = "0.7.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true; buildConfig = true }
@@ -39,4 +39,6 @@ dependencies {
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.room:room-runtime:2.7.1")
+    androidTestImplementation("androidx.media3:media3-exoplayer:1.6.1")
+    androidTestImplementation("androidx.media3:media3-ui:1.6.1")
 }

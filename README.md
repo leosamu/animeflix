@@ -1,6 +1,6 @@
 # AnimeFlix
 
-Móvil 0.6.2 incorpora reproducción nativa de MP4Upload mediante Android Media3, con pantalla completa, pausa, avance y progreso local. Al salir de pantalla completa vuelve a la vista vertical con los controles. Es la primera integración nativa por servidor; los demás proveedores todavía no son compatibles con este modo. El trabajo de reproducción en TV queda aplazado hasta validar esta ruta en móvil. Detalles y pruebas: [reproducción nativa](docs/reproduccion-nativa.md).
+Móvil 0.7.0 amplía la reproducción nativa de MP4Upload con preparación de enlaces temporales desde los embeds de Voe, HLS, UPNShare y Byse. Voe y UPNShare han reproducido con Media3 en el móvil; HLS devuelve un rechazo del servidor y Byse requiere verificación humana. Los resultados concretos están en [reproducción nativa](docs/reproduccion-nativa.md). Se conservan pantalla completa, pausa, avance y progreso local. El trabajo de reproducción en TV queda aplazado hasta validar esta ruta en móvil.
 
 Código: [leosamu/animeflix](https://github.com/leosamu/animeflix). Entregas: [Releases](https://github.com/leosamu/animeflix/releases). Consulta [cómo guardar y publicar versiones](docs/versiones-github.md) y el [historial de cambios](CHANGELOG.md). El repositorio es privado; las descargas requieren acceso a GitHub.
 
@@ -110,7 +110,7 @@ Cubren búsqueda vacía/sin resultados, conservación de pantalla al recrear la 
 Para las pruebas locales sin depender de la web (siete desde 0.5):
 
 ```powershell
-.\gradlew.bat :app-mobile:connectedQaAndroidTest '-Pandroid.testInstrumentationRunnerArguments.notClass=com.animeflix.mobile.OriginalEpisodeWebViewTest,com.animeflix.mobile.RemoteEpisodeSmokeTest,com.animeflix.mobile.NativePlaybackSmokeTest'
+.\gradlew.bat :app-mobile:connectedQaAndroidTest '-Pandroid.testInstrumentationRunnerArguments.notClass=com.animeflix.mobile.OriginalEpisodeWebViewTest,com.animeflix.mobile.RemoteEpisodeSmokeTest,com.animeflix.mobile.NativePlaybackSmokeTest,com.animeflix.mobile.OmaeServerProbeTest,com.animeflix.mobile.IntegratedProviderTest'
 ```
 
 `RemoteEpisodeSmokeTest` consulta la ficha y el episodio 1 de One Piece para comprobar desde Android la lectura real de episodios y servidores; requiere conexión y disponibilidad de AnimeAV1. `OriginalEpisodeWebViewTest` comprueba que la página original carga su iframe dentro de la pantalla de reproducción. `:core:data:testDebugUnitTest` prueba también ordenación, deduplicación, idioma, esquema HTTPS y aislamiento de los enlaces de descarga. Estas pruebas no acreditan que un vídeo llegue a reproducirse: eso se valida manualmente en el dispositivo.

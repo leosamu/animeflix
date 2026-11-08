@@ -12,3 +12,4 @@ secrets.properties
 key.properties
 .env.*
 !.env.example
+.kotlin/
