@@ -9,6 +9,7 @@
 - Pruebas integradas en paquete QA separado para HLS, UPNShare, Voe y Byse en SUB/DUB, con primer fotograma, progreso y pantalla completa cuando hay vídeo. Audio pendiente de revisión manual.
 - Sin activar todavía la ruta nativa en Android TV.
 - HLS/Zilla entrega manifiesto pero rechaza la descarga nativa con 403. Byse abre un iframe en n1mwq.org que solicita verificación humana; se presenta el recuadro y se espera la intervención manual, sin automatizarla.
+- El usuario confirma que Byse reproduce con controles nativos después de completar personalmente la verificación en 0.7.0.
 
 ## Móvil 0.6.2 — 2026-11-08
 

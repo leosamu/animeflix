@@ -1,6 +1,6 @@
 # Reproducción nativa móvil — 0.7.0
 
-La reproducción nativa sustituye el reproductor web por Android Media3 para los proveedores implementados. No es necesario interactuar con una página ni con un iframe para ver el vídeo.
+La reproducción nativa usa Android Media3 para el vídeo y sus controles. Algunos proveedores necesitan preparar el enlace en su embed y Byse solicita una verificación humana antes de entregar la fuente.
 
 El 8 de noviembre de 2026 se validó MP4Upload en el móvil conectado: prueba real de primer fotograma y progreso, pantalla completa y retorno a vertical, más confirmación manual del usuario de que los controles vuelven y no se pierde el vídeo.
 
@@ -10,7 +10,7 @@ El 8 de noviembre de 2026 se validó MP4Upload en el móvil conectado: prueba re
 | HLS/Zilla | Preparación implementada; el servidor rechaza peticiones nativas con HTTP 403. En pruebas |
 | UPNShare | Integrado mediante su embed y Turboembed; vídeo nativo confirmado en SUB/DUB del episodio de prueba |
 | Voe | Integrado mediante su embed y redirección pública; vídeo nativo confirmado en SUB/DUB del episodio de prueba |
-| Byse | Preparación implementada, incluyendo su iframe anidado n1mwq.org; exige verificación humana antes de obtener vídeo. Nativo pendiente de confirmación manual |
+| Byse | Reproducción con controles nativos confirmada manualmente por el usuario en 0.7.0, después de completar la verificación humana en su iframe n1mwq.org |
 
 La aplicación selecciona automáticamente MP4Upload cuando está disponible; si no, intenta el primer proveedor reconocido. La compatibilidad se comprueba por episodio y no se garantiza para todo el catálogo. La prueba MP4Upload usa One Piece, episodio 1; la matriz de otros proveedores usa el episodio 1 de Omae gotoki.
 
@@ -89,3 +89,5 @@ Validación final de 0.7.0 el 8 de noviembre de 2026: nueve comprobaciones en el
 El recuadro de Byse se revisó además visualmente y por medidas: el iframe y la verificación tienen 220 px de altura, y el botón Play aparece centrado y dentro del área visible. No se pulsó el desafío. Compilación y lint móvil/TV, pruebas de datos, regresión del diseño TV y selección de fuentes JavaScript completados sin errores. `scripts/test-provider-source.cjs` comprueba rechazo de muestras/anuncios cortos, conservación del manifiesto maestro y su audio, rechazo de enlaces blob y ausencia de clics automáticos en la verificación humana.
 
 Para la revisión manual, abrir Omae gotoki, episodio 1, seleccionar Voe o UPNShare en SUB/DUB y comprobar sonido, pausa/avance, pantalla completa y retorno al minuto. En Byse, completar personalmente la verificación del recuadro y comprobar si después se entrega vídeo al reproductor nativo. HLS continúa experimental y no se da por compatible.
+
+Confirmación posterior del usuario, 8 de noviembre de 2026: Byse entrega el vídeo a los controles nativos tras completar personalmente la verificación en 0.7.0, siguiendo la prueba de Omae gotoki, episodio 1. No se indicó el idioma seleccionado ni se confirmó por separado sonido, búsqueda temporal o reanudación; no se extiende este resultado a todos los episodios o idiomas.
