@@ -1,5 +1,13 @@
 # Historial de versiones
 
+## v0.9.1-tv-preview.1 — 2026-11-10
+
+- Corrige el recorrido de foco del acceso: correo → Siguiente → contraseña → Listo → Entrar.
+- Android TV recupera el foco al cerrar el teclado con Atrás. Con el teclado cerrado, cruceta arriba/abajo navega entre campos y OK abre la edición; no se vuelve a abrir el teclado solo por seleccionar un campo.
+- Formulario compartido de móvil/TV; no cambia cuentas, perfiles, contraseñas ni datos sincronizados.
+- Dos pruebas instrumentadas con formulario ficticio y teclado virtual TV verifican acciones IME y navegación después de Atrás, sin realizar peticiones de autenticación.
+- Móvil 0.9.1 (18), TV 0.9.1-tv-preview1 (19). Conserva la firma de 0.9.0 de este PC y la incidencia de vídeo en emulador pendiente de validar en TV real.
+
 ## v0.9.0-tv-preview.1 — 2026-11-10
 
 - Rediseño visual previo a Release: selector de perfiles con avatares vectoriales, cuadrícula adaptable, creación en diálogo y estados de foco para mando. Cabecera compacta del perfil activo y paleta oscura/coral compartida.

@@ -54,6 +54,7 @@ Iniciar sesión con la cuenta ya creada. Para probar registro/recuperación por 
 - Catálogo e historial muestran portadas; el historial recupera episodios, progreso y marcas de visto de la cuenta. Capturas locales en `screens/tv-favorites.png`, `screens/tv-history.png`, `screens/tv-profiles.png`, `screens/tv-second-profile.png` y `screens/tv-ready.png`, excluidas de Git.
 - La reproducción real de servidores, audio y rendimiento debe probarse aparte. El resultado de un emulador no acredita compatibilidad con todas las TV físicas.
 - Posteriormente, el usuario observó imagen duplicada y ruido de color al reproducir en el emulador. No se ha determinado si el origen es el emulador, el renderizado, el decodificador o la fuente. Se prepara `v0.9.0-tv-preview.1` para comprobarlo en una TV real; no se considera validada la reproducción TV de esta entrega.
+- Corrección 0.9.1: se habilitó temporalmente `show_ime_with_hard_keyboard=1` para reproducir el uso del teclado virtual con mando. Las pruebas `CredentialsFocusTest` verifican Siguiente/Listo y que Atrás permite continuar navegando por los campos y Entrar. La actividad QA no usa credenciales reales ni llama al acceso de Supabase.
 
 Registros del emulador en `.tools/emulator-logs/`. La captura inicial de acceso sin credenciales está en `screens/tv-start.png`. No capturar ni registrar contraseñas o enlaces con tokens.
 

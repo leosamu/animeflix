@@ -104,7 +104,6 @@ fun AccountGate(enabled: Boolean = true, allowPreview: Boolean = false, authCall
                     var email by rememberSaveable { mutableStateOf("") }
                     // Password is deliberately not saveable across activity/process recreation.
                     var password by remember { mutableStateOf("") }
-                    var passwordVisible by remember { mutableStateOf(false) }
                     var register by rememberSaveable { mutableStateOf(false) }
                     var importLink by remember { mutableStateOf(false) }
                     var recoveryLink by remember { mutableStateOf("") }
@@ -115,14 +114,7 @@ fun AccountGate(enabled: Boolean = true, allowPreview: Boolean = false, authCall
                         Text("Una cuenta, una aventura para cada perfil.")
                         if (accounts.config.configured) {
                             Text(if (register) "Crear cuenta" else "Iniciar sesión", style = MaterialTheme.typography.titleLarge)
-                            OutlinedTextField(email, { email = it }, label = { Text("Correo electrónico") }, singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), modifier = Modifier.fillMaxWidth(), enabled = !busy)
-                            OutlinedTextField(password, { password = it }, label = { Text("Contraseña") }, singleLine = true,
-                                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                                trailingIcon = { TextButton(onClick = { passwordVisible = !passwordVisible }) { Text(if (passwordVisible) "Ocultar" else "Mostrar") } },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false),
-                                modifier = Modifier.fillMaxWidth(), enabled = !busy)
-                            Button(onClick = { run {
+                            CredentialsForm(email, password, busy, register, onEmail = { email = it }, onPassword = { password = it }, onSubmit = { run {
                                 if (register) {
                                     if (accounts.signUp(email, password)) {
                                         register = false
@@ -130,10 +122,7 @@ fun AccountGate(enabled: Boolean = true, allowPreview: Boolean = false, authCall
                                     }
                                 } else accounts.signIn(email, password)
                                 password = ""
-                                passwordVisible = false
-                            } }, enabled = !busy && email.isNotBlank() && password.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
-                                Text(if (busy) "Conectando…" else if (register) "Crear cuenta" else "Entrar")
-                            }
+                            } })
                             TextButton(onClick = { register = !register; error = null }, enabled = !busy) { Text(if (register) "Ya tengo cuenta" else "Crear una cuenta") }
                             if (!register) {
                                 TextButton(onClick = { run {

@@ -8,24 +8,35 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import com.animeflix.data.AccountState
 import com.animeflix.data.ViewingProfile
 import com.animeflix.model.Anime
 import com.animeflix.model.WatchEntry
 import com.animeflix.playback.AnimeFlixColors
 import com.animeflix.playback.ProfilePicker
+import com.animeflix.playback.CredentialsForm
+import androidx.compose.material3.Text
 
 /** Development-only visual review, using fixtures without reading/writing any account or history. */
 class UiReviewActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val screen = intent.getStringExtra("screen").orEmpty()
+        val screen = intent.getStringExtra("screen") ?: "credentials"
         val now = System.currentTimeMillis()
         val anime = Anime("review-1", "One Piece", "", posterUrl = "https://cdn.animeav1.com/covers/197.jpg", sourceUrl = "https://animeav1.com/media/one-piece")
         setContent {
             MaterialTheme(colorScheme = AnimeFlixColors) {
                 Surface(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing), color = MaterialTheme.colorScheme.background) {
-                    if (screen == "profiles") {
+                    if (screen == "credentials") {
+                        var email by remember { mutableStateOf("") }
+                        var password by remember { mutableStateOf("") }
+                        var submitted by remember { mutableStateOf(false) }
+                        Column(Modifier.fillMaxSize().padding(28.dp)) {
+                            CredentialsForm(email, password, false, false, { email = it }, { password = it }, { submitted = true })
+                            if (submitted) Text("Formulario enviado")
+                        }
+                    } else if (screen == "profiles") {
                         var selected by remember { mutableStateOf("") }
                         ProfilePicker(AccountState(accountId = "review", email = "Cuenta de demostración", profiles = listOf(
                             ViewingProfile("review-boy", "Niño"), ViewingProfile("review-girl", "Niña"),
