@@ -4,7 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.animeflix.data.AnimeAv1Episodes
-import com.animeflix.data.LocalAnimeRepository
+import com.animeflix.data.ProfileAnimeRepository
 import com.animeflix.model.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -12,7 +12,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 
 class LibraryUpdatesViewModel(app: Application) : AndroidViewModel(app) {
-    private val repository = LocalAnimeRepository.create(app)
+    private val repository = ProfileAnimeRepository.create(app)
     private val remote = AnimeAv1Episodes()
     private val requests = mutableSetOf<String>()
     private val network = Semaphore(3)

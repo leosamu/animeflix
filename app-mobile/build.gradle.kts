@@ -3,18 +3,32 @@ android {
     namespace = "com.animeflix.mobile"
     compileSdk = 35
     defaultConfig {
-        applicationId = "com.animeflix.mobile"; minSdk = 23; targetSdk = 35; versionCode = 16; versionName = "0.8.1"
+        applicationId = "com.animeflix.mobile"; minSdk = 23; targetSdk = 35; versionCode = 17; versionName = "0.9.0"
+        buildConfigField("boolean", "PREVIEW_PROFILES", "false")
+        resValue("string", "app_name", "AnimeFlix")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true; buildConfig = true }
     buildTypes {
         getByName("debug") { buildConfigField("boolean", "DEMO_CATALOG", "false") }
-        getByName("release") { buildConfigField("boolean", "DEMO_CATALOG", "false") }
+        getByName("release") {
+            buildConfigField("boolean", "DEMO_CATALOG", "false")
+            if (providers.gradleProperty("testReleaseSigning").orNull == "true") {
+                signingConfig = signingConfigs.getByName("debug")
+            }
+        }
         create("qa") {
             initWith(getByName("debug"))
             applicationIdSuffix = ".qa"
             matchingFallbacks += listOf("debug")
             buildConfigField("boolean", "DEMO_CATALOG", "true")
+        }
+        create("cloudPreview") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".preview"
+            matchingFallbacks += listOf("debug")
+            buildConfigField("boolean", "PREVIEW_PROFILES", "true")
+            resValue("string", "app_name", "AnimeFlix Perfiles")
         }
     }
     testBuildType = "qa"

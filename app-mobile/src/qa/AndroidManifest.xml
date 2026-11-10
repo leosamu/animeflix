@@ -1,0 +1,6 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- Fixture-only UI review surface. Never packaged in debug, preview or release. -->
+        <activity android:name=".UiReviewActivity" android:exported="true" />
+    </application>
+</manifest>

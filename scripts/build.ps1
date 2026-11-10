@@ -4,6 +4,10 @@ $projectRoot = Split-Path $PSScriptRoot -Parent
 Push-Location $projectRoot
 try {
     if (-not $env:JAVA_HOME) {
+        $localJdk = Get-ChildItem (Join-Path $projectRoot '.tools/java') -Directory -Filter 'jdk-17*' -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($localJdk) { $env:JAVA_HOME = $localJdk.FullName }
+    }
+    if (-not $env:JAVA_HOME) {
         $env:JAVA_HOME = [Environment]::GetEnvironmentVariable('JAVA_HOME', 'Machine')
     }
     if (-not $env:JAVA_HOME) { throw 'Configura JAVA_HOME con la ruta de JDK 17.' }

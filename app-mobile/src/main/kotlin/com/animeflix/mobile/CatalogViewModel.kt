@@ -4,7 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
-import com.animeflix.data.LocalAnimeRepository
+import com.animeflix.data.ProfileAnimeRepository
 import com.animeflix.data.AnimeAv1Catalog
 import com.animeflix.model.Anime
 import kotlinx.coroutines.CancellationException
@@ -18,7 +18,7 @@ data class CatalogState(val items: List<Anime> = emptyList(), val loading: Boole
 private data class SyncState(val refreshing: Boolean = false, val more: Boolean = false)
 
 class CatalogViewModel(app: Application, private val saved: SavedStateHandle) : AndroidViewModel(app) {
-    private val repository = LocalAnimeRepository.create(app)
+    private val repository = ProfileAnimeRepository.create(app)
     private val refresh = MutableStateFlow(0)
     private val actionError = MutableStateFlow<String?>(null)
     private val syncState = MutableStateFlow(SyncState())
@@ -28,11 +28,15 @@ class CatalogViewModel(app: Application, private val saved: SavedStateHandle) : 
     val query = saved.getStateFlow("query", "")
     val section = saved.getStateFlow("section", "catalog")
     val selectedId = saved.getStateFlow<String?>("selected", null)
-    private val preferences = app.getSharedPreferences("library_preferences", android.content.Context.MODE_PRIVATE)
-    val hideCaughtUp = saved.getStateFlow("hideCaughtUp", preferences.getBoolean("hideCaughtUp", false))
+    val hideCaughtUp = repository.observeHideCaughtUp().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
     fun setHideCaughtUp(value: Boolean) {
-        saved["hideCaughtUp"] = value
-        preferences.edit().putBoolean("hideCaughtUp", value).apply()
+        viewModelScope.launch {
+            try { repository.setHideCaughtUp(value); actionError.value = null }
+            catch (failure: Exception) {
+                if (failure is CancellationException) throw failure
+                actionError.value = "No se pudo guardar la preferencia. Inténtalo de nuevo."
+            }
+        }
     }
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)

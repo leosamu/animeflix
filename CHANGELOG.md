@@ -1,5 +1,22 @@
 # Historial de versiones
 
+## v0.9.0-tv-preview.1 — 2026-11-10
+
+- Rediseño visual previo a Release: selector de perfiles con avatares vectoriales, cuadrícula adaptable, creación en diálogo y estados de foco para mando. Cabecera compacta del perfil activo y paleta oscura/coral compartida.
+- Historial móvil con portadas, tarjeta Seguir viendo basada en progreso real, barras de avance, agrupación por fecha y estado vacío. Historial TV con portadas y acciones enfocables. Se conservan las marcas de visto y la separación de perfiles.
+- Descargas offline pospuestas a una versión posterior; estudio de viabilidad disponible en `docs/descargas-offline-viabilidad.md`.
+
+- Recuperación de contraseña desde la app, pantalla de nueva contraseña y enlaces de confirmación/recuperación por variante Android. Importación manual de enlaces antiguos de localhost, con validación de origen y token contra Supabase. Botón Mostrar contraseña y paso automático del registro al acceso. Flujo real de recuperación pendiente de confirmar con el usuario.
+
+- Inicio de sesión y registro por correo/contraseña con Supabase Auth, confirmación de correo y renovación de sesión. Tokens cifrados con Android Keystore; no se guardan contraseñas.
+- Una cuenta contiene varios perfiles; selector compartido por móvil/TV, creación de perfiles y cambio sin cerrar sesión.
+- Favoritos, historial, vistos, progreso y Ocultar al día separados por perfil. Bases locales por cuenta/perfil; los guardados diferidos del reproductor conservan el perfil original.
+- Cola persistente y sincronización por campo; reintento manual y al volver a la app. Políticas RLS y claves foráneas para aislar cuentas.
+- Room v6 y migración 5→6. Vista previa local `com.animeflix.mobile.preview` con Niño/Niña, instalada como AnimeFlix Perfiles.
+- Móvil 0.9.0 (17) y TV 0.9.0-tv-preview1 (18). APK de tipo release, no depurables, con firma local de pruebas activada explícitamente. Entrega GitHub como prerelease con APK, notas y SHA-256; se conservan las entregas anteriores.
+- Supabase configurado localmente. Usuario confirmó acceso y perfiles en móvil; emulador TV comprobado con dos perfiles, listas diferentes, historial y progreso. Consulta SQL de RLS entre cuentas y recuperación completa de contraseña pendientes.
+- La reproducción en el emulador mostró imagen duplicada con ruido de color. Causa sin determinar; validación en Android TV real pendiente.
+
 ## v0.8.1-tv-preview.1 — 2026-11-08
 
 - Interruptor Ocultar al día arriba a la derecha en móvil y casilla con mando en TV, en Explorar y Mi lista.

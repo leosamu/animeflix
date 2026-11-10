@@ -1,5 +1,7 @@
 # AnimeFlix Android TV — 0.8.1 preview 1
 
+La versión 0.9.0 en desarrollo ya dispone de un [emulador Android TV local](emulador-tv.md), con instalación y pantalla de acceso comprobadas. El resto de esta guía describe la entrega 0.8.1 y sus pruebas físicas pendientes.
+
 Esta versión usa reproducción nativa con Media3 por defecto. Compilación y análisis estático verificados; el modo TV compartido se comprueba en el móvil QA en horizontal, pero no se ha probado en un Android TV físico ni en un emulador TV. No está publicada en Google Play. APK firmado con la misma clave de desarrollo de las entregas TV anteriores.
 
 ## Archivo e instalación

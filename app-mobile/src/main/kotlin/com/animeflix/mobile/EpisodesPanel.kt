@@ -11,13 +11,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import com.animeflix.playback.profileViewModel
 import com.animeflix.model.Episode
 import com.animeflix.model.EpisodeInventory
 import com.animeflix.model.playbackTime
 
 @Composable
-fun EpisodesPanel(mediaUrl: String, model: EpisodesViewModel = viewModel(), historyModel: WatchHistoryViewModel = viewModel(), inventory: EpisodeInventory? = null) {
+fun EpisodesPanel(mediaUrl: String, model: EpisodesViewModel = profileViewModel(), historyModel: WatchHistoryViewModel = profileViewModel(), inventory: EpisodeInventory? = null) {
     val state by model.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val history by historyModel.entries.collectAsStateWithLifecycle()

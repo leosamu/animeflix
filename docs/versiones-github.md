@@ -11,7 +11,7 @@ La primera etiqueta es `v0.5.0-tv-preview.1`. Se marca como prerelease porque TV
 
 ## Descargas y visibilidad
 
-El repositorio es privado. Sus Releases y archivos requieren autorización de GitHub; disponer del enlace no los convierte en descargas públicas. Para descarga pública desde una TV, se puede usar en el futuro un repositorio público separado solo para los APK u otro alojamiento. No se ha cambiado la visibilidad del código.
+El repositorio es público (comprobado el 10 de noviembre de 2026). Los archivos de Releases publicados se descargan sin iniciar sesión. Este despliegue no cambia la visibilidad del repositorio. Para TV puede usarse el enlace directo al APK correspondiente a la etiqueta.
 
 Según la entrega, se adjunta `AnimeFlix-Mobile.apk`, `AnimeFlix-TV.apk` o ambos; los enlaces incluyen la etiqueta y quedan asociados a esa versión. `v0.7.0-tv-preview.1` entrega el APK TV nativo, su guía y SHA-256. `releases/latest/download/…` se reserva para una futura versión estable: GitHub no trata un prerelease como la última versión estable.
 
@@ -37,6 +37,21 @@ git push origin v0.5.0-tv-preview.2
 No sobrescribir etiquetas ni archivos de entregas anteriores: publicar una versión nueva para conservar el historial.
 
 ## Firma de las actualizaciones
+
+### Entrega 0.9.0 del 10 de noviembre de 2026
+
+`v0.9.0-tv-preview.1` se distribuye como prerelease para pruebas en dispositivo real, con APK release de móvil/TV no depurables, firma verificada, notas y hashes. La publicación se asocia al commit de la versión y se realiza primero como borrador, subiendo los archivos antes de hacerla pública. No se sobrescriben etiquetas ni archivos de otras versiones. La entrega local inicial conserva su manifiesto e instantánea anteriores a la publicación; los archivos publicados llevan su propio manifiesto con el commit de entrega.
+
+La compilación de pruebas se realiza con:
+
+```powershell
+& ./scripts/build.ps1 -Tasks @(':app-mobile:assembleRelease', ':app-tv:assembleRelease', ':app-mobile:lintRelease', ':app-tv:lintRelease', ':core:data:testDebugUnitTest', '-PtestReleaseSigning=true')
+& ./scripts/package-test-release.ps1
+```
+
+La opción explícita conserva la clave debug de este PC, pero el tipo release no activa la depuración. La clave difiere de la usada en el otro equipo: no se garantiza actualización sobre los APK históricos. Se conserva una copia privada adicional en `.tools/signing/this-pc-debug.keystore`, excluida de Git y del paquete de entrega. El empaquetador no sobrescribe una entrega local existente.
+
+### Entregas anteriores
 
 Las entregas actuales usan la firma local de desarrollo. La clave privada no se sube al repositorio. Debe conservarse localmente para que Android acepte actualizaciones sobre estas instalaciones. El certificado público se puede comprobar con `apksigner verify --print-certs`.
 

@@ -1,14 +1,18 @@
 # AnimeFlix
 
+**0.9.0 TV preview 1:** [Release y APK](https://github.com/leosamu/animeflix/releases/tag/v0.9.0-tv-preview.1), [notas e instalación](docs/releases/v0.9.0-tv-preview.1.md). APK móvil/TV de tipo release con firma de pruebas de este PC. Vídeo en TV real pendiente; el fallo gráfico observado en el emulador tiene causa aún no determinada.
+
+**0.9.0:** cuenta por correo/contraseña, varios perfiles dentro de la cuenta y sincronización por perfil de favoritos, vistos, historial, progreso y preferencias. [Configuración y alcance de Supabase](docs/supabase-perfiles.md). Acceso y perfiles probados en móvil y emulador TV, con listas e historial de la cuenta. Recuperación de contraseña y prueba SQL de RLS entre cuentas pendientes de validación completa. La variante `cloudPreview` se instala como **AnimeFlix Perfiles** y permite también pruebas locales separadas.
+
 **0.8.1:** interruptor **Ocultar al día** arriba a la derecha, en móvil y TV. Filtra Explorar/Mi lista, conserva la preferencia y mantiene las series sin comprobar. Una serie oculta reaparece cuando se actualizan sus datos y tiene capítulos pendientes. Entrega actual: `v0.8.1-tv-preview.1`.
 
 Móvil **0.8.0** y TV **0.8.0-tv-preview1** añaden [pendientes y última publicación](docs/mi-lista-pendientes.md): Mi lista muestra N pendientes/Al día y la fecha del último episodio. Marcar vistos actualiza el contador; las nuevas publicaciones también aparecen en la ficha. Los datos se guardan sin conexión y se conservan favoritos y progreso mediante migración Room v5. Entrega: `v0.8.0-tv-preview.1`.
 
 Móvil 0.7.0 amplía la reproducción nativa de MP4Upload con preparación de enlaces temporales desde los embeds de Voe, HLS, UPNShare y Byse. Voe y UPNShare han reproducido con Media3 en el móvil; HLS devuelve un rechazo del servidor y Byse requiere verificación humana. Los resultados concretos están en [reproducción nativa](docs/reproduccion-nativa.md). Se conservan pantalla completa, pausa, avance y progreso local. La misma ruta se incorpora a Android TV 0.7.0-tv-preview1; su validación física en TV sigue pendiente.
 
-Código: [leosamu/animeflix](https://github.com/leosamu/animeflix). Entregas: [Releases](https://github.com/leosamu/animeflix/releases). Consulta [cómo guardar y publicar versiones](docs/versiones-github.md) y el [historial de cambios](CHANGELOG.md). El repositorio es privado; las descargas requieren acceso a GitHub.
+Código: [leosamu/animeflix](https://github.com/leosamu/animeflix). Entregas: [Releases](https://github.com/leosamu/animeflix/releases). Consulta [cómo guardar y publicar versiones](docs/versiones-github.md) y el [historial de cambios](CHANGELOG.md). El repositorio es público y los APK publicados pueden descargarse sin iniciar sesión.
 
-Proyecto Android nativo para móvil y Android TV. Explorar, Mi lista, Historial, búsqueda, fichas, catálogo público de AnimeAV1 y episodios. Portadas, caché, favoritos, historial, vistos y progreso persistentes en Room; marcado de episodios anteriores en bloque. Sin cuentas todavía. Android TV 0.7.0-tv-preview1 incorpora reproducción nativa, panel de servidores con mando y verificación manual de Byse. Pendiente de prueba física en TV; consulta la [guía de instalación y pruebas](docs/android-tv-pruebas.md).
+Proyecto Android nativo para móvil y Android TV. Explorar, Mi lista, Historial, búsqueda, fichas, catálogo público de AnimeAV1 y episodios. Portadas, caché, favoritos, historial, vistos y progreso persistentes en Room; marcado de episodios anteriores en bloque. La integración de cuentas y perfiles de 0.9.0 requiere configurar Supabase. Android TV incorpora reproducción nativa, panel de servidores con mando y verificación manual de Byse. Pendiente de prueba física en TV; consulta la [guía de instalación y pruebas](docs/android-tv-pruebas.md).
 
 ## Estructura
 
@@ -119,9 +123,9 @@ Para las pruebas locales sin depender de la web (diez desde 0.8.1):
 
 `RemoteEpisodeSmokeTest` consulta la ficha y el episodio 1 de One Piece para comprobar desde Android la lectura real de episodios y servidores; requiere conexión y disponibilidad de AnimeAV1. `OriginalEpisodeWebViewTest` comprueba que la página original carga su iframe dentro de la pantalla de reproducción. `:core:data:testDebugUnitTest` prueba también ordenación, deduplicación, idioma, esquema HTTPS y aislamiento de los enlaces de descarga. Estas pruebas no acreditan que un vídeo llegue a reproducirse: eso se valida manualmente en el dispositivo.
 
-## Supabase, fase siguiente
+## Supabase y perfiles
 
-`RemoteAnimeSource` define el punto de entrada futuro. No hay SDK Supabase, URL, claves ni llamadas de red configuradas. Añadir un adaptador remoto, autenticación y sincronización conservando Room como fuente local. Antes de habilitar acceso, diseñar tablas, migraciones y políticas RLS. En clientes solo usar la clave pública/publishable; nunca una clave service_role. Los favoritos ahora son locales y no se comparten entre dispositivos.
+0.9.0 incorpora Supabase Auth y Data API por HTTPS, renovación de sesión, selector/creación de perfiles y cola local persistente por perfil. La migración SQL y sus políticas RLS están en `supabase/migrations/`; las pruebas de aislamiento de base de datos están en `supabase/tests/`. No hay URL ni claves incluidas. Consultar [la guía de despliegue y limitaciones](docs/supabase-perfiles.md) antes de habilitarlo. La sincronización real entre dispositivos sigue pendiente de validación contra un proyecto Supabase.
 
 ## Próximos pasos
 

@@ -60,11 +60,12 @@ interface InventoryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun put(inventory: InventoryEntity)
 }
 
-@Database(entities = [AnimeEntity::class, WatchEntity::class, InventoryEntity::class], version = 5, exportSchema = true)
+@Database(entities = [AnimeEntity::class, WatchEntity::class, InventoryEntity::class, ProfileEntry::class], version = 6, exportSchema = true)
 abstract class AnimeDatabase : RoomDatabase() {
     abstract fun animeDao(): AnimeDao
     abstract fun watchDao(): WatchDao
     abstract fun inventoryDao(): InventoryDao
+    abstract fun profileEntryDao(): ProfileEntryDao
 }
 
 class LocalAnimeRepository private constructor(private val dao: AnimeDao, private val watchDao: WatchDao, private val inventoryDao: InventoryDao) : AnimeRepository {
@@ -114,6 +115,12 @@ class LocalAnimeRepository private constructor(private val dao: AnimeDao, privat
         AnimeEntity("demo-2", "Guardianes del alba", "Una aventura de ejemplo, sin contenido de vídeo.")
     ))
     companion object {
+        internal fun fromDatabase(db: AnimeDatabase) = LocalAnimeRepository(db.animeDao(), db.watchDao(), db.inventoryDao())
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS profile_entries (kind TEXT NOT NULL, itemKey TEXT NOT NULL, value TEXT NOT NULL, revision TEXT NOT NULL, dirty INTEGER NOT NULL, PRIMARY KEY(kind, itemKey))")
+            }
+        }
         val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("CREATE TABLE IF NOT EXISTS episode_inventory (mediaUrl TEXT NOT NULL, episodeUrls TEXT NOT NULL, latestPublishedAt INTEGER, checkedAt INTEGER NOT NULL, PRIMARY KEY(mediaUrl))")
@@ -138,7 +145,7 @@ class LocalAnimeRepository private constructor(private val dao: AnimeDao, privat
                         db.execSQL("ALTER TABLE anime ADD COLUMN posterUrl TEXT NOT NULL DEFAULT ''")
                         db.execSQL("ALTER TABLE anime ADD COLUMN sourceUrl TEXT NOT NULL DEFAULT ''")
                     }
-                }, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build().let { LocalAnimeRepository(it.animeDao(), it.watchDao(), it.inventoryDao()) }.also { instance = it }
+                }, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6).build().let { LocalAnimeRepository(it.animeDao(), it.watchDao(), it.inventoryDao()) }.also { instance = it }
         }
     }
 }

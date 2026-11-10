@@ -5,6 +5,9 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -14,6 +17,9 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
@@ -26,14 +32,14 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import com.animeflix.playback.profileViewModel
 import androidx.tv.material3.*
 import coil.compose.AsyncImage
 import com.animeflix.model.*
 import com.animeflix.playback.*
 
 @Composable
-fun AnimeFlixTvApp(catalog: CatalogViewModel = viewModel(), history: WatchHistoryViewModel = viewModel(), episodes: EpisodesViewModel = viewModel(), updates: LibraryUpdatesViewModel = viewModel()) {
+fun AnimeFlixTvApp(catalog: CatalogViewModel = profileViewModel(), history: WatchHistoryViewModel = profileViewModel(), episodes: EpisodesViewModel = profileViewModel(), updates: LibraryUpdatesViewModel = profileViewModel()) {
     val state by catalog.state.collectAsStateWithLifecycle()
     val section by catalog.section.collectAsStateWithLifecycle()
     val query by catalog.query.collectAsStateWithLifecycle()
@@ -65,8 +71,8 @@ fun AnimeFlixTvApp(catalog: CatalogViewModel = viewModel(), history: WatchHistor
     BackHandler(enabled = selectedId != null || section != "catalog") {
         if (selectedId != null) catalog.open(null) else catalog.navigate("catalog")
     }
-    androidx.compose.material3.MaterialTheme(colorScheme = darkColorScheme()) {
-    MaterialTheme {
+    androidx.compose.material3.MaterialTheme(colorScheme = AnimeFlixColors) {
+    MaterialTheme(colorScheme = androidx.tv.material3.darkColorScheme(primary = AnimeFlixColors.primary, background = AnimeFlixColors.background, surface = AnimeFlixColors.surface)) {
     Surface(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -145,15 +151,33 @@ fun AnimeFlixTvApp(catalog: CatalogViewModel = viewModel(), history: WatchHistor
                 section == "history" -> {
                     val opened = marks.filter { it.openedAt > 0 }
                     LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(8.dp)) {
-                        item { Text("Historial", style = MaterialTheme.typography.headlineMedium) }
-                        if(opened.isEmpty()) item { Text("Todavía no has abierto episodios en este dispositivo.") }
-                        items(opened, key = { it.episodeUrl }) { entry ->
-                            val title = state.items.find { it.sourceUrl == entry.mediaUrl }?.title ?: entry.mediaUrl.substringAfterLast('/').replace('-', ' ')
-                            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                Button(onClick = { play(entry.episodeUrl) }, modifier = Modifier.weight(1f)) {
-                                    Text("$title · Episodio ${entry.number}" + if(entry.positionMs > 0) " · ${playbackTime(entry.positionMs)}" else "")
+                        item { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("TU RECORRIDO", style = MaterialTheme.typography.labelMedium, color = AnimeFlixColors.primary)
+                            Text("Historial", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+                            Text("Retoma tus historias, a tu ritmo.", color = AnimeFlixColors.onSurfaceVariant)
+                        } }
+                        if(opened.isEmpty()) item { Text("Todavía no has abierto episodios en este perfil.") }
+                        itemsIndexed(opened, key = { _, entry -> entry.episodeUrl }) { index, entry ->
+                            val anime = state.items.find { it.sourceUrl.trimEnd('/') == entry.mediaUrl }
+                            val title = anime?.title ?: entry.mediaUrl.substringAfterLast('/').replace('-', ' ')
+                            androidx.compose.material3.Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp),
+                                colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = AnimeFlixColors.surface),
+                                border = BorderStroke(1.dp, if(index == 0) AnimeFlixColors.primary.copy(alpha = .35f) else Color.White.copy(alpha = .07f))) {
+                                Row(Modifier.padding(20.dp), horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    AsyncImage(anime?.posterUrl, null, Modifier.width(88.dp).height(128.dp).clip(RoundedCornerShape(12.dp)), contentScale = ContentScale.Crop)
+                                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                        Text("Episodio ${entry.number}" + if(entry.positionMs > 0) " · ${playbackTime(entry.positionMs)} guardados" else "",
+                                            color = AnimeFlixColors.onSurfaceVariant)
+                                        if(entry.durationMs > 0 && !entry.watched) androidx.compose.material3.LinearProgressIndicator(
+                                            progress = { (entry.positionMs.toDouble() / entry.durationMs).coerceIn(0.0, 1.0).toFloat() },
+                                            modifier = Modifier.fillMaxWidth().height(3.dp), trackColor = Color.White.copy(alpha = .08f))
+                                        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                            Button(onClick = { play(entry.episodeUrl) }) { Text(if(entry.positionMs > 0 && !entry.watched) "Continuar" else "Abrir de nuevo") }
+                                            Button(onClick = { history.watched(entry, !entry.watched) }) { Text(if(entry.watched) "Visto · desmarcar" else "Marcar visto") }
+                                        }
+                                    }
                                 }
-                                Button(onClick = { history.watched(entry, !entry.watched) }) { Text(if(entry.watched) "Visto · desmarcar" else "Marcar visto") }
                             }
                         }
                     }

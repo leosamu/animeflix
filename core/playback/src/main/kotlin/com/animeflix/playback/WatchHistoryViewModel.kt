@@ -3,7 +3,7 @@ package com.animeflix.playback
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.animeflix.data.LocalAnimeRepository
+import com.animeflix.data.ProfileAnimeRepository
 import com.animeflix.model.WatchEntry
 import com.animeflix.model.Episode
 import kotlinx.coroutines.CancellationException
@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 class WatchHistoryViewModel(app: Application) : AndroidViewModel(app) {
-    private val repository = LocalAnimeRepository.create(app)
+    private val repository = ProfileAnimeRepository.create(app)
     private val mutableError = MutableStateFlow<String?>(null)
     val error = mutableError.asStateFlow()
     val entries = repository.observeWatchHistory().catch { failure ->

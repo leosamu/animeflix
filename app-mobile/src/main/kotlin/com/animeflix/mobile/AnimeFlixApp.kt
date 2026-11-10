@@ -25,19 +25,18 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
 import coil.compose.AsyncImage
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import com.animeflix.playback.profileViewModel
 import com.animeflix.model.Anime
 import com.animeflix.model.EpisodeAvailability
 import com.animeflix.model.EpisodeInventory
 import com.animeflix.playback.LibraryUpdatesViewModel
 import com.animeflix.playback.LibraryRefreshOnResume
 
-private val colors = darkColorScheme(primary = Color(0xFFFF647C), onPrimary = Color(0xFF330710),
-    background = Color(0xFF0D101B), surface = Color(0xFF151A29), surfaceVariant = Color(0xFF242B40))
+private val colors = com.animeflix.playback.AnimeFlixColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AnimeFlixApp(model: CatalogViewModel = viewModel(), updates: LibraryUpdatesViewModel = viewModel()) {
+fun AnimeFlixApp(model: CatalogViewModel = profileViewModel(), updates: LibraryUpdatesViewModel = profileViewModel()) {
     val state by model.state.collectAsStateWithLifecycle()
     val query by model.query.collectAsStateWithLifecycle()
     val section by model.section.collectAsStateWithLifecycle()
