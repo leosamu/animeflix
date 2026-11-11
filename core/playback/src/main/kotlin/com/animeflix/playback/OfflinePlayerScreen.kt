@@ -27,6 +27,7 @@ internal fun OfflinePlayerScreen(id: Long, episodeUrl: String, title: String, wa
     val activity = context as? android.app.Activity
     val resumeFocus = remember { FocusRequester() }
     val store = remember { EpisodeDownloads(context) }
+    var streamKeys by remember(id) { mutableStateOf(emptyList<androidx.media3.common.StreamKey>()) }
     var source by remember(id) { mutableStateOf<ResolvedVideo?>(null) }
     var loading by remember(id) { mutableStateOf(true) }
     var resumePosition by remember(id) { mutableLongStateOf(0) }
@@ -39,7 +40,11 @@ internal fun OfflinePlayerScreen(id: Long, episodeUrl: String, title: String, wa
             resumePosition = lookupPosition()
             android.util.Log.d("AnimeFlixOffline", "Saved position loaded: $resumePosition")
             withContext(Dispatchers.IO) {
-            if(store.list().none { it.id == id && it.episodeUrl == episodeUrl }) null
+            if(id < 0) {
+                val cached = store.cachedPlayback(id)
+                streamKeys = cached?.keys.orEmpty()
+                cached?.video
+            } else if(store.list().none { it.id == id && it.episodeUrl == episodeUrl }) null
             else store.localUri(id)?.let { ResolvedVideo(it.toString(), "", mimeType = "video/mp4") }
         } } catch(failure: Exception) {
             if(failure is CancellationException) throw failure
@@ -72,7 +77,7 @@ internal fun OfflinePlayerScreen(id: Long, episodeUrl: String, title: String, wa
             if(loading) LinearProgressIndicator(Modifier.fillMaxWidth())
             source?.let { video ->
                 NativeVideo(video, episodeUrl, resumePosition, Modifier.fillMaxWidth().weight(1f), onProgress,
-                    onRetry = onBack, fullScreen = fullScreen, onFullScreen = { fullScreen = it }, tv = tv, offline = true)
+                    onRetry = onBack, fullScreen = fullScreen, onFullScreen = { fullScreen = it }, tv = tv, offline = true, offlineCacheId = id.takeIf { it < 0 }, offlineStreamKeys = streamKeys)
             }
             if(source == null && !loading) Text("El archivo no está disponible en este perfil. Vuelve a Descargas para descargarlo de nuevo.", modifier = Modifier.padding(16.dp))
             if(!fullScreen) Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

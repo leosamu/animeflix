@@ -5,6 +5,8 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -48,6 +50,7 @@ private fun DownloadLibrary(onBack: () -> Unit) {
     var target by remember(owner) { mutableStateOf<OfflineEpisode?>(null) }
     val scope = rememberCoroutineScope()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(Unit) { store.resumeQueue() }
     LaunchedEffect(owner, lifecycle) { lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
         while(true) {
             try { items = withContext(Dispatchers.IO) { store.list() } }
@@ -64,7 +67,7 @@ private fun DownloadLibrary(onBack: () -> Unit) {
                 Text("Tu biblioteca sin conexión", style = MaterialTheme.typography.headlineSmall)
                 Text("${account.selected?.name.orEmpty()} · Solo en este dispositivo", color = AnimeFlixColors.onSurfaceVariant)
                 Text("${offlineSize(items.sumOf { it.storedBytes })} usados · ${items.count { it.complete }} disponibles", style = MaterialTheme.typography.bodySmall)
-                Text("Para descargar, abre un episodio y elige MP4Upload. Por defecto se espera una red sin coste medido.", style = MaterialTheme.typography.bodySmall)
+                Text("Una descarga cada vez, alternando fuentes compatibles sin cambiar de idioma. Por defecto se espera una red sin coste medido.", style = MaterialTheme.typography.bodySmall)
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
             if(items.isEmpty()) item { Text("Todavía no tienes episodios descargados en este perfil.") }
@@ -75,7 +78,7 @@ private fun DownloadLibrary(onBack: () -> Unit) {
                         Text(entry.episodeUrl.substringBeforeLast('/').substringAfterLast('/').replace('-', ' '), color = AnimeFlixColors.onSurfaceVariant)
                         Text(entry.serverName, style = MaterialTheme.typography.labelMedium, color = AnimeFlixColors.primary)
                         Text(entry.statusLabel(), style = MaterialTheme.typography.bodySmall)
-                        if(entry.active && entry.total > 0) LinearProgressIndicator(progress = { (entry.bytes.toFloat() / entry.total).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
+                        if(entry.active && (entry.total > 0 || entry.percent >= 0)) LinearProgressIndicator(progress = { (if(entry.percent >= 0) entry.percent / 100f else entry.bytes.toFloat() / entry.total).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             if(entry.complete) Button(onClick = {
                                 context.startActivity(Intent(context, PlayerActivity::class.java).putExtra("episodeUrl", entry.episodeUrl)
@@ -122,6 +125,7 @@ fun DownloadEpisodeButton(episodeUrl: String, title: String, server: PlaybackSer
     val context = LocalContext.current
     val store = remember { EpisodeDownloads(context) }
     val scope = rememberCoroutineScope()
+    val notifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { /* Queue works even if notifications are declined. */ }
     var selected by remember(episodeUrl, server?.embedUrl) { mutableStateOf(server) }
     var confirm by remember(episodeUrl, server?.embedUrl) { mutableStateOf(false) }
     var metered by remember(episodeUrl) { mutableStateOf(false) }
@@ -132,8 +136,8 @@ fun DownloadEpisodeButton(episodeUrl: String, title: String, server: PlaybackSer
         busy = true; message = null
         scope.launch {
             try {
-                selected = com.animeflix.data.AnimeAv1Episodes().servers(episodeUrl).firstOrNull { com.animeflix.data.Mp4UploadResolver.supports(it.embedUrl) }
-                if(selected == null) message = "Este episodio no tiene una fuente de descarga compatible. Por ahora se admite MP4Upload."
+                selected = com.animeflix.data.AnimeAv1Episodes().servers(episodeUrl).firstOrNull { com.animeflix.data.DownloadOriginPolicy.provider(it) != null }
+                if(selected == null) message = "Este episodio no tiene una fuente de descarga compatible. Se admiten MP4Upload, Voe y UPNShare cuando el proveedor lo permite."
                 else confirm = true
             } catch(failure: Exception) {
                 if(failure is CancellationException) throw failure
@@ -150,10 +154,11 @@ fun DownloadEpisodeButton(episodeUrl: String, title: String, server: PlaybackSer
     }
     if(confirm) AlertDialog(onDismissRequest = { confirm = false }, title = { Text("Descargar para ver offline") },
         text = { Column {
-            Text("${selected?.name ?: "MP4Upload"} · Se guardará en este dispositivo para el perfil actual. El tamaño aparecerá en Descargas al comenzar.")
+            Text("Fuentes automáticas · ${selected?.name?.substringBefore(" · ") ?: "Idioma original"}. Se guardará en este dispositivo para el perfil actual. El tamaño aparecerá en Descargas al comenzar.")
             Row { Checkbox(checked = metered, onCheckedChange = { metered = it }, modifier = Modifier.semantics { contentDescription = "Permitir descargas en redes con coste medido" }); Text("Permitir datos móviles o redes con coste medido") }
         } }, confirmButton = { TextButton(onClick = {
             confirm = false; busy = true; message = null
+            if(android.os.Build.VERSION.SDK_INT >= 33 && androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) notifications.launch(android.Manifest.permission.POST_NOTIFICATIONS)
             scope.launch {
                 try { store.enqueue(episodeUrl, title, checkNotNull(selected), metered); message = "Añadido a Descargas." }
                 catch(failure: Exception) {

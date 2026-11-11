@@ -1,5 +1,14 @@
 # Historial de versiones
 
+## v0.10.1-tv-preview.1 — 2026-11-12
+
+- Cola persistente de un capítulo activo por dispositivo; enlaces preparados al llegar el turno y cancelación independiente de los capítulos en espera.
+- Rotación y alternativas entre MP4Upload, Voe y UPNShare, conservando idioma. Fuentes fallidas descansan temporalmente; cambio de origen lento si hay alternativas y espera cuando todos están en descanso.
+- Descarga MP4/HLS mediante Media3, selección de una variante de vídeo/audio/subtítulos y reproducción de la caché sin HTTP alternativo. Descriptor local cifrado y cabeceras temporales por intento.
+- Conserva vídeos terminados de 0.10.0 y reinicia sus transferencias activas en la nueva cola.
+- Móvil código 22; TV código 23, misma firma de las entregas anteriores.
+
+
 ## v0.10.0-tv-preview.1 — 2026-11-11
 
 - Descargas MP4Upload desde la lista o el reproductor y biblioteca local por perfil. Cola de Android con estado, progreso, tamaño, redes sin coste medido por defecto, cancelar/eliminar y reintentar con enlace renovado. Reproducción exclusivamente local con progreso y vistos. Consulta `docs/descargas-offline.md` para compatibilidad y validación.

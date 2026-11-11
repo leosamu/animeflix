@@ -59,7 +59,7 @@ private fun PlayerScreen(episodeUrl: String, title: String, onBack: () -> Unit, 
     val watched = history.find { it.episodeUrl == activeEpisodeUrl }?.watched == true
     val position = history.find { it.episodeUrl == activeEpisodeUrl }?.positionMs ?: 0
     LaunchedEffect(activeEpisodeUrl) { historyModel.opened(activeEpisodeUrl) }
-    if(offlineId >= 0) {
+    if(offlineId != -1L) {
         OfflinePlayerScreen(offlineId, activeEpisodeUrl, title, watched, tv, lookupPosition = { historyModel.savedPosition(activeEpisodeUrl) },
             onProgress = historyModel::progress, onMark = { historyModel.mark(activeEpisodeUrl, !watched) }, onBack = onBack)
         return

@@ -55,7 +55,7 @@ internal fun TvNativePlayerLayout(title: String, episodeUrl: String, servers: Li
                 Text("Vídeo: cruceta y OK para los controles. Atrás o Menú: servidores.", style = MaterialTheme.typography.bodySmall)
                 if(loading) LinearProgressIndicator(Modifier.fillMaxWidth())
                 error?.let { Text(it) }
-                selected?.takeIf { com.animeflix.data.Mp4UploadResolver.supports(it.embedUrl) }?.let { DownloadEpisodeButton(episodeUrl, title, it) }
+                selected?.takeIf { com.animeflix.data.DownloadOriginPolicy.provider(it) != null }?.let { DownloadEpisodeButton(episodeUrl, title, it) }
                 Text("Servidor", style = MaterialTheme.typography.titleSmall)
                 servers.forEach { server ->
                     FilledTonalButton(onClick = { onSelect(server) }, colors = ButtonDefaults.filledTonalButtonColors(containerColor = if(server == selected) AnimeFlixColors.primaryContainer else AnimeFlixColors.surfaceVariant), modifier = Modifier.fillMaxWidth().tvRemoteFocus()

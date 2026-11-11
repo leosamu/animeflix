@@ -4,7 +4,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const source = fs.readFileSync(path.join(__dirname, '../core/playback/src/main/kotlin/com/animeflix/playback/ProviderVideoResolver.kt'), 'utf8')
-  .split('private val SOURCE_SCRIPT = """')[1].split('""".trimIndent()')[0];
+  .split(/(?:private|internal) val SOURCE_SCRIPT = """/)[1].split('""".trimIndent()')[0];
 const responses = new Map(), messages = [], intervals = [];
 let videos = [], verification = false, clicks = 0;
 function Xhr() {}

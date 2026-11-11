@@ -56,7 +56,7 @@ class OfflineDownloadTest {
             val girl = accounts.state.value.profiles.first { it.name == "Niña" }
             accounts.select(boy)
             val repository = ProfileAnimeRepository.create(context)
-            val server = AnimeAv1Episodes().servers(url).first { Mp4UploadResolver.supports(it.embedUrl) }
+            val server = AnimeAv1Episodes().servers(url).first { Mp4UploadResolver.supports(it.embedUrl) }.copy(name = "MP4Upload")
             if(!emulator) check(!(context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager).isActiveNetworkMetered) { "La prueba física requiere Wi-Fi sin coste medido." }
             id = store.enqueue(url, "Prueba offline · Episodio 1", server, metered = emulator)
             val deadline = SystemClock.elapsedRealtime() + 240_000
@@ -69,6 +69,7 @@ class OfflineDownloadTest {
             assertTrue("Estado ${entry.status}, motivo ${entry.reason}, bytes ${entry.bytes}/${entry.total}", entry.complete)
             assertEquals(id, store.enqueue(url, entry.title, server)) // No duplicate transfer.
             val uri = checkNotNull(store.localUri(id))
+            if(id > 0) {
             val extractor = MediaExtractor()
             try {
                 extractor.setDataSource(context, uri, null)
@@ -76,6 +77,7 @@ class OfflineDownloadTest {
                 assertTrue(types.any { it.startsWith("video/") })
                 assertTrue(types.any { it.startsWith("audio/") })
             } finally { extractor.release() }
+            }
             accounts.select(girl)
             assertTrue(store.list().isEmpty())
             assertNull(store.localUri(id))
@@ -97,7 +99,8 @@ class OfflineDownloadTest {
                 try { rule.waitUntil(30_000) { runCatching { rule.onAllNodesWithContentDescription("Vídeo listo").fetchSemanticsNodes().isNotEmpty() }.getOrDefault(false) } } catch(failure: Throwable) { rule.onRoot().printToLog("AnimeFlixOfflineUI"); throw failure }
                 scenario.onActivity { activity ->
                     val player = findPlayer(activity.window.decorView)?.player ?: error("Falta el reproductor local")
-                    assertEquals("file", player.currentMediaItem?.localConfiguration?.uri?.scheme)
+                    assertEquals(if(id < 0) "https" else "file", player.currentMediaItem?.localConfiguration?.uri?.scheme)
+                    assertTrue(player.currentTracks.groups.any { track -> track.type == androidx.media3.common.C.TRACK_TYPE_AUDIO })
                     player.seekTo(60_000)
                     player.play()
                 }
@@ -115,7 +118,7 @@ class OfflineDownloadTest {
                 try { rule.waitUntil(30_000) { runCatching { rule.onAllNodesWithContentDescription("Vídeo listo").fetchSemanticsNodes().isNotEmpty() }.getOrDefault(false) } } catch(failure: Throwable) { rule.onRoot().printToLog("AnimeFlixOfflineUI"); throw failure }
                 scenario.onActivity { assertTrue((findPlayer(it.window.decorView)?.player?.currentPosition ?: 0) >= 60_000) }
             }
-            File(uri.path!!).delete()
+            if(id < 0) File(context.noBackupFilesDir, "offline-v2/${-id}/source.bin").delete() else File(uri.path!!).delete()
             assertNull(store.localUri(id))
             assertTrue(store.list().single { it.id == id }.failed)
             store.remove(id)
@@ -124,7 +127,7 @@ class OfflineDownloadTest {
             if(emulator) shell("service call ethernet 13 i32 1")
             if(wifi != "0") shell("svc wifi enable")
             if(data != "0") shell("svc data enable")
-            if(id >= 0) store.remove(id)
+            if(id != -1L) store.remove(id)
             accounts.signOut()
         }
     }

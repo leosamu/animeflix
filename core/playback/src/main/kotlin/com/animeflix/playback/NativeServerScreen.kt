@@ -150,7 +150,7 @@ internal fun NativeServerScreen(title: String, episodeUrl: String, servers: List
                 FilterChip(selected = watched, onClick = onMark, label = { Text(if(watched) "Visto" else "Marcar visto") }, leadingIcon = { EpisodeActionIcon(watched = watched) })
                 TextButton(onClick = onWeb) { Text("Modo web") }
             }
-            if(selected != null && Mp4UploadResolver.supports(selected.embedUrl)) DownloadEpisodeButton(episodeUrl, title, selected)
+            if(selected != null && com.animeflix.data.DownloadOriginPolicy.provider(selected) != null) DownloadEpisodeButton(episodeUrl, title, selected)
             if(position > 0) Text("Continuar en ${playbackTime(position)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
@@ -161,7 +161,7 @@ internal fun NativeServerScreen(title: String, episodeUrl: String, servers: List
 @Composable
 internal fun NativeVideo(source: ResolvedVideo, episodeUrl: String, resumePosition: Long, modifier: Modifier,
     onProgress: (String, Long, Long) -> Unit, onRetry: () -> Unit, fullScreen: Boolean, onFullScreen: (Boolean) -> Unit,
-    tv: Boolean = false, offline: Boolean = false) {
+    tv: Boolean = false, offline: Boolean = false, offlineCacheId: Long? = null, offlineStreamKeys: List<androidx.media3.common.StreamKey> = emptyList()) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val save by rememberUpdatedState(onProgress)
@@ -171,6 +171,7 @@ internal fun NativeVideo(source: ResolvedVideo, episodeUrl: String, resumePositi
     var played by remember { mutableStateOf(false) }
     var firstFrame by remember { mutableStateOf(false) }
     var buffering by remember { mutableStateOf(true) }
+    val offlineCache = remember(offlineCacheId) { offlineCacheId?.let { OfflineCacheFiles.acquire(context, it) } }
     val player = remember(source.url, episodeUrl) {
         val http = DefaultHttpDataSource.Factory().setUserAgent(source.userAgent)
             .setConnectTimeoutMs(15_000).setReadTimeoutMs(20_000)
@@ -180,14 +181,16 @@ internal fun NativeVideo(source: ResolvedVideo, episodeUrl: String, resumePositi
                 source.origin?.let { put("Origin", it) }
             })
         // The offline path cannot fall back to HTTP, even if local media is missing or incomplete.
-        val factory: androidx.media3.datasource.DataSource.Factory = if(offline) {
+        val factory: androidx.media3.datasource.DataSource.Factory = if(offlineCache != null) {
+            androidx.media3.datasource.cache.CacheDataSource.Factory().setCache(offlineCache).setUpstreamDataSourceFactory(null).setCacheWriteDataSinkFactory(null)
+        } else if(offline) {
             require(android.net.Uri.parse(source.url).scheme == "file")
             androidx.media3.datasource.FileDataSource.Factory()
         } else http
         ExoPlayer.Builder(context).setMediaSourceFactory(DefaultMediaSourceFactory(factory)).build().apply {
             setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
             setHandleAudioBecomingNoisy(true)
-            setMediaItem(MediaItem.Builder().setUri(source.url).setMimeType(source.mimeType).build())
+            setMediaItem(MediaItem.Builder().setUri(source.url).setMimeType(source.mimeType).setStreamKeys(offlineStreamKeys).build())
             if(resumePosition > 0) seekTo(resumePosition)
             prepare(); playWhenReady = lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
         }
@@ -216,7 +219,7 @@ internal fun NativeVideo(source: ResolvedVideo, episodeUrl: String, resumePositi
             else if(event == Lifecycle.Event.ON_RESUME && resumeOnForeground) player.play()
         }
         lifecycle.addObserver(observer)
-        onDispose { persist(); lifecycle.removeObserver(observer); player.removeListener(listener); player.release() }
+        onDispose { persist(); lifecycle.removeObserver(observer); player.removeListener(listener); player.release(); offlineCacheId?.let { OfflineCacheFiles.release(context, it) } }
     }
     LaunchedEffect(player) { while(true) { delay(5_000); persist() } }
     Column(modifier) {

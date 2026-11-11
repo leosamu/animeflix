@@ -1,5 +1,7 @@
 # Episodios sin conexión
 
+Esta guía documenta el alcance inicial de 0.10.0. La revisión 0.10.1 incorpora [cola serial y fuentes alternativas MP4/HLS](descargas-cola.md); los archivos antiguos completados se conservan.
+
 ## Uso
 
 - En la lista de episodios, pulsa **↓**. La app consulta las fuentes y ofrece la descarga cuando encuentra MP4Upload. También se puede descargar desde el menú del reproductor nativo con ese servidor seleccionado.

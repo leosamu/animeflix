@@ -185,7 +185,7 @@ internal fun ProviderVideoResolver(server: PlaybackServer, episodeUrl: String, m
 
 // Observe only actual media elements and successful manifest responses; never arbitrary page strings
 // (Voe publishes a short sample MP4 that is not the selected episode).
-private val SOURCE_SCRIPT = """
+internal val SOURCE_SCRIPT = """
     (function(){
       document.addEventListener('play',function(e){if(e.target.tagName==='VIDEO')e.target.muted=true;},true);
       if(location.hostname==='byselapuix.com'||location.hostname==='n1mwq.org') {
