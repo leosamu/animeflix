@@ -1,5 +1,13 @@
 # Historial de versiones
 
+## v0.10.0-tv-preview.1 — 2026-11-11
+
+- Descargas MP4Upload desde la lista o el reproductor y biblioteca local por perfil. Cola de Android con estado, progreso, tamaño, redes sin coste medido por defecto, cancelar/eliminar y reintentar con enlace renovado. Reproducción exclusivamente local con progreso y vistos. Consulta `docs/descargas-offline.md` para compatibilidad y validación.
+- Móvil: código 20; TV: código 21. Se conserva la firma de las versiones anteriores de este PC.
+- Lista de episodios móvil/TV con filtro Ocultar vistos antes de paginar, estado sin pendientes y acciones vectoriales para marcar visto y anteriores en una sola fila. Se conserva la confirmación de marcado masivo.
+- Reproductor con la paleta compartida, acciones móviles agrupadas, vídeo con esquinas redondeadas fuera de pantalla completa y menús TV compactos con servidor seleccionado y foco visible.
+
+
 ## v0.9.1-tv-preview.1 — 2026-11-10
 
 - Corrige el recorrido de foco del acceso: correo → Siguiente → contraseña → Listo → Entrar.

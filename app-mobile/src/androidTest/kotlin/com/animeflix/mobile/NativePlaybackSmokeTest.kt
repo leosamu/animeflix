@@ -22,12 +22,12 @@ class NativePlaybackSmokeTest {
             .putExtra("episodeUrl", "https://animeav1.com/media/one-piece/1")
             .putExtra("title", "Episodio 1").putExtra("nativeMode", true)).use {
             rule.waitUntil(60_000) { rule.onAllNodesWithContentDescription("Vídeo listo").fetchSemanticsNodes().isNotEmpty() }
-            rule.waitUntil(20_000) { rule.onAllNodesWithText("Minuto guardado:", substring = true).fetchSemanticsNodes().isNotEmpty() }
-            rule.onNodeWithText("Pantalla completa").performClick()
-            rule.waitUntil(10_000) { rule.onAllNodesWithText("Reproducción nativa").fetchSemanticsNodes().isEmpty() }
+            rule.waitUntil(20_000) { rule.onAllNodesWithText("Continuar en", substring = true).fetchSemanticsNodes().isNotEmpty() }
+            rule.onNodeWithText("Ampliar").performClick()
+            rule.waitUntil(10_000) { rule.onAllNodesWithText("ANIMEFLIX · REPRODUCTOR").fetchSemanticsNodes().isEmpty() }
             rule.onNodeWithContentDescription("Vídeo listo").assertExists()
             it.onActivity { activity -> activity.onBackPressedDispatcher.onBackPressed() }
-            rule.waitUntil(10_000) { rule.onAllNodesWithText("Reproducción nativa").fetchSemanticsNodes().isNotEmpty() }
+            rule.waitUntil(10_000) { rule.onAllNodesWithText("ANIMEFLIX · REPRODUCTOR").fetchSemanticsNodes().isNotEmpty() }
             rule.waitUntil(10_000) {
                 var portrait = false
                 it.onActivity { activity -> portrait = activity.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT }

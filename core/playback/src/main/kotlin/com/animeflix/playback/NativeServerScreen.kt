@@ -15,6 +15,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
@@ -95,7 +98,7 @@ internal fun NativeServerScreen(title: String, episodeUrl: String, servers: List
         } finally { resolving = false }
     }
     if(tv) {
-        TvNativePlayerLayout(title, servers, selected, loading || resolving, error ?: serverError,
+        TvNativePlayerLayout(title, episodeUrl, servers, selected, loading || resolving, error ?: serverError,
             position, watched, menu = !fullScreen, hasVideo = video != null,
             onMenu = { fullScreen = !it }, onSelect = { selectedUrl = it.embedUrl }, onRetry = { retry++ },
             onMark = onMark, onBack = onBack, onWeb = onWeb,
@@ -116,11 +119,11 @@ internal fun NativeServerScreen(title: String, episodeUrl: String, servers: List
             })
         return
     }
-    Scaffold(topBar = { if(!fullScreen) TopAppBar(title = { Text(title) }, navigationIcon = { TextButton(onClick = onBack) { Text("Volver") } }) },
+    Scaffold(topBar = { if(!fullScreen) TopAppBar(title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) }, navigationIcon = { TextButton(onClick = onBack) { Text("Volver") } }) },
         contentWindowInsets = if(fullScreen) WindowInsets(0,0,0,0) else ScaffoldDefaults.contentWindowInsets) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(if(fullScreen) 0.dp else 12.dp), verticalArrangement = Arrangement.spacedBy(if(fullScreen) 0.dp else 12.dp)) {
             if(!fullScreen) {
-            Text("Reproducción nativa", style = MaterialTheme.typography.titleMedium)
+            Text("ANIMEFLIX · REPRODUCTOR", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 servers.forEach { server -> FilterChip(selected = selected?.embedUrl == server.embedUrl,
                     onClick = { selectedUrl = server.embedUrl }, label = { Text(server.name) }) }
@@ -138,14 +141,17 @@ internal fun NativeServerScreen(title: String, episodeUrl: String, servers: List
                 }
             }
             video?.let { source -> key(episodeUrl, source.url, retry) {
-                NativeVideo(source, episodeUrl, position, Modifier.fillMaxWidth().weight(1f), onProgress, onRetry = { retry++ },
+                NativeVideo(source, episodeUrl, position, Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(if(fullScreen) 0.dp else 16.dp)), onProgress, onRetry = { retry++ },
                     fullScreen = fullScreen, onFullScreen = { fullScreen = it })
             } } ?: Spacer(Modifier.weight(1f))
             if(!fullScreen) {
-            OutlinedButton(onClick = { fullScreen = true }, enabled = video != null, modifier = Modifier.fillMaxWidth()) { Text("Pantalla completa") }
-            if(position > 0) Text("Minuto guardado: ${playbackTime(position)}", style = MaterialTheme.typography.bodySmall)
-            FilterChip(selected = watched, onClick = onMark, label = { Text(if(watched) "Visto · desmarcar" else "Marcar como visto") })
-            OutlinedButton(onClick = onWeb, modifier = Modifier.fillMaxWidth()) { Text("Usar reproductor web") }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilledTonalButton(onClick = { fullScreen = true }, enabled = video != null, modifier = Modifier.weight(1f)) { Text("Ampliar") }
+                FilterChip(selected = watched, onClick = onMark, label = { Text(if(watched) "Visto" else "Marcar visto") }, leadingIcon = { EpisodeActionIcon(watched = watched) })
+                TextButton(onClick = onWeb) { Text("Modo web") }
+            }
+            if(selected != null && Mp4UploadResolver.supports(selected.embedUrl)) DownloadEpisodeButton(episodeUrl, title, selected)
+            if(position > 0) Text("Continuar en ${playbackTime(position)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -153,9 +159,9 @@ internal fun NativeServerScreen(title: String, episodeUrl: String, servers: List
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
-private fun NativeVideo(source: ResolvedVideo, episodeUrl: String, resumePosition: Long, modifier: Modifier,
+internal fun NativeVideo(source: ResolvedVideo, episodeUrl: String, resumePosition: Long, modifier: Modifier,
     onProgress: (String, Long, Long) -> Unit, onRetry: () -> Unit, fullScreen: Boolean, onFullScreen: (Boolean) -> Unit,
-    tv: Boolean = false) {
+    tv: Boolean = false, offline: Boolean = false) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val save by rememberUpdatedState(onProgress)
@@ -173,7 +179,12 @@ private fun NativeVideo(source: ResolvedVideo, episodeUrl: String, resumePositio
                 source.cookie?.takeIf { it.isNotBlank() }?.let { put("Cookie", it) }
                 source.origin?.let { put("Origin", it) }
             })
-        ExoPlayer.Builder(context).setMediaSourceFactory(DefaultMediaSourceFactory(http)).build().apply {
+        // The offline path cannot fall back to HTTP, even if local media is missing or incomplete.
+        val factory: androidx.media3.datasource.DataSource.Factory = if(offline) {
+            require(android.net.Uri.parse(source.url).scheme == "file")
+            androidx.media3.datasource.FileDataSource.Factory()
+        } else http
+        ExoPlayer.Builder(context).setMediaSourceFactory(DefaultMediaSourceFactory(factory)).build().apply {
             setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
             setHandleAudioBecomingNoisy(true)
             setMediaItem(MediaItem.Builder().setUri(source.url).setMimeType(source.mimeType).build())
@@ -187,6 +198,7 @@ private fun NativeVideo(source: ResolvedVideo, episodeUrl: String, resumePositio
         if(played && duration in 60_000..86_400_000 && position in 0..duration) save(episodeUrl, position, duration)
     }
     DisposableEffect(player, lifecycle) {
+        var resumeOnForeground = true
         val listener = object : Player.Listener {
             override fun onRenderedFirstFrame() { firstFrame = true }
             override fun onPlaybackStateChanged(playbackState: Int) { buffering = playbackState == Player.STATE_BUFFERING }
@@ -200,7 +212,8 @@ private fun NativeVideo(source: ResolvedVideo, episodeUrl: String, resumePositio
         }
         player.addListener(listener)
         val observer = LifecycleEventObserver { _, event ->
-            if(event == Lifecycle.Event.ON_PAUSE) { persist(); player.pause() }
+            if(event == Lifecycle.Event.ON_PAUSE) { resumeOnForeground = player.playWhenReady; persist(); player.pause() }
+            else if(event == Lifecycle.Event.ON_RESUME && resumeOnForeground) player.play()
         }
         lifecycle.addObserver(observer)
         onDispose { persist(); lifecycle.removeObserver(observer); player.removeListener(listener); player.release() }
@@ -209,9 +222,10 @@ private fun NativeVideo(source: ResolvedVideo, episodeUrl: String, resumePositio
     Column(modifier) {
         if(buffering && !failure) LinearProgressIndicator(Modifier.fillMaxWidth())
         if(failure) {
-            Text(if(rejected) "Este servidor ha rechazado la reproducción. Prueba otro servidor o el modo web."
+            Text(if(offline) "No se pudo leer el archivo descargado. Vuelve a Descargas para eliminarlo y descargarlo de nuevo."
+                else if(rejected) "Este servidor ha rechazado la reproducción. Prueba otro servidor o el modo web."
                 else "No se pudo reproducir el vídeo. El enlace puede haber caducado o el servidor no responder.")
-            TextButton(onClick = onRetry) { Text("Obtener enlace nuevo") }
+            TextButton(onClick = onRetry) { Text(if(offline) "Volver a Descargas" else "Obtener enlace nuevo") }
         }
         AndroidView(factory = { PlayerView(it).apply {
             this.player = player; keepScreenOn = true; useController = true

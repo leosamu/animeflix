@@ -1,5 +1,8 @@
 # AnimeFlix
 
+Versión de prueba [**0.10.0-preview1**](https://github.com/leosamu/animeflix/releases/tag/v0.10.0-tv-preview.1), con [descargas locales por perfil para fuentes MP4Upload compatibles](docs/descargas-offline.md), filtro de episodios vistos y reproductor compacto. Descarga [Android TV](https://github.com/leosamu/animeflix/releases/download/v0.10.0-tv-preview.1/AnimeFlix-TV.apk) o [móvil](https://github.com/leosamu/animeflix/releases/download/v0.10.0-tv-preview.1/AnimeFlix-Mobile.apk).
+
+
 **0.9.1 TV preview 1:** [APK y notas](https://github.com/leosamu/animeflix/releases/tag/v0.9.1-tv-preview.1). Corrige el acceso con mando: Siguiente pasa del correo a la contraseña, Listo lleva a Entrar y Atrás devuelve el foco a la app al cerrar el teclado. Actualización con la misma firma de la entrega 0.9.0 de este PC.
 
 **0.9.0 TV preview 1:** [Release y APK](https://github.com/leosamu/animeflix/releases/tag/v0.9.0-tv-preview.1), [notas e instalación](docs/releases/v0.9.0-tv-preview.1.md). APK móvil/TV de tipo release con firma de pruebas de este PC. Vídeo en TV real pendiente; el fallo gráfico observado en el emulador tiene causa aún no determinada.

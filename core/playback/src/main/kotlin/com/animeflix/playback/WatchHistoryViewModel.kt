@@ -24,6 +24,7 @@ class WatchHistoryViewModel(app: Application) : AndroidViewModel(app) {
     fun mark(url: String, watched: Boolean) = save { repository.markWatched(url, watched) }
     fun previous(episodes: List<Episode>, target: Episode) = save { repository.markPrevious(episodes, target) }
     fun progress(url: String, position: Long, duration: Long) = save { repository.saveProgress(url, position, duration) }
+    suspend fun savedPosition(url: String): Long = repository.observeWatchHistory().first().firstOrNull { it.episodeUrl == url }?.positionMs ?: 0
     private fun save(action: suspend () -> Unit) {
         viewModelScope.launch {
             try { action(); mutableError.value = null }

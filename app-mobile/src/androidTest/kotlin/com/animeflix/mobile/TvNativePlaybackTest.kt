@@ -50,7 +50,7 @@ class TvNativePlaybackTest {
             }
             rule.waitUntil(10_000) { rule.onAllNodes(hasText("Controlar verificación con mando") and isFocused()).fetchSemanticsNodes().isNotEmpty() }
             rule.onNodeWithText("Controlar verificación con mando").assertIsFocused()
-            rule.onNodeWithText("Reproducción nativa · TV").assertExists()
+            rule.onNodeWithText("ANIMEFLIX · REPRODUCTOR").assertExists()
             scenario.onActivity { check(it.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) }
         }
     }
@@ -63,28 +63,28 @@ class TvNativePlaybackTest {
             .putExtra("tvMode", true).putExtra("nativeMode", true)).use { scenario ->
             rule.waitUntil(60_000) { rule.onAllNodesWithContentDescription("Vídeo listo").fetchSemanticsNodes().isNotEmpty() }
             scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
-            rule.waitUntil(10_000) { rule.onAllNodesWithText("Reproducción nativa · TV").fetchSemanticsNodes().isNotEmpty() }
+            rule.waitUntil(10_000) { rule.onAllNodesWithText("ANIMEFLIX · REPRODUCTOR").fetchSemanticsNodes().isNotEmpty() }
             rule.waitUntil(10_000) { rule.onAllNodes(hasText("✓", substring = true) and isFocused()).fetchSemanticsNodes().isNotEmpty() }
             rule.onNode(hasText("✓", substring = true)).assertIsFocused()
             if(provider != null) {
                 rule.onNodeWithText("$provider").performScrollTo().performClick()
                 rule.waitUntil(60_000) {
                     rule.onAllNodesWithContentDescription("Vídeo listo").fetchSemanticsNodes().isNotEmpty() &&
-                        rule.onAllNodesWithText("Reproducción nativa · TV").fetchSemanticsNodes().isEmpty()
+                        rule.onAllNodesWithText("ANIMEFLIX · REPRODUCTOR").fetchSemanticsNodes().isEmpty()
                 }
                 scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
-                rule.waitUntil(10_000) { rule.onAllNodesWithText("Reproducción nativa · TV").fetchSemanticsNodes().isNotEmpty() }
+                rule.waitUntil(10_000) { rule.onAllNodesWithText("ANIMEFLIX · REPRODUCTOR").fetchSemanticsNodes().isNotEmpty() }
             }
             rule.onNodeWithContentDescription("Vídeo listo").assertExists()
             rule.onNodeWithText("Ver vídeo · cerrar menú").performScrollTo().performClick()
-            rule.waitUntil(10_000) { rule.onAllNodesWithText("Reproducción nativa · TV").fetchSemanticsNodes().isEmpty() }
+            rule.waitUntil(10_000) { rule.onAllNodesWithText("ANIMEFLIX · REPRODUCTOR").fetchSemanticsNodes().isEmpty() }
             scenario.onActivity {
                 check(it.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE)
                 it.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_CENTER))
                 it.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_CENTER))
                 it.onBackPressedDispatcher.onBackPressed()
             }
-            rule.waitUntil(10_000) { rule.onAllNodesWithText("Reproducción nativa · TV").fetchSemanticsNodes().isNotEmpty() }
+            rule.waitUntil(10_000) { rule.onAllNodesWithText("ANIMEFLIX · REPRODUCTOR").fetchSemanticsNodes().isNotEmpty() }
             rule.onNodeWithContentDescription("Vídeo listo").assertExists()
             scenario.onActivity { check(it.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) }
         }

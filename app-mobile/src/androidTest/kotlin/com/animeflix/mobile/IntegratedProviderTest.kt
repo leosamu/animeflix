@@ -53,15 +53,15 @@ class IntegratedProviderTest {
             if(verification && hold > 0) Thread.sleep(hold * 1000)
             if(required) check(ready) { "$server no ha producido el primer fotograma nativo" }
             if(ready) {
-                rule.waitUntil(15_000) { rule.onAllNodesWithText("Minuto guardado:", substring = true).fetchSemanticsNodes().isNotEmpty() }
-                rule.onNodeWithText("Pantalla completa").performClick()
-                rule.waitUntil(10_000) { rule.onAllNodesWithText("Reproducción nativa").fetchSemanticsNodes().isEmpty() }
+                rule.waitUntil(15_000) { rule.onAllNodesWithText("Continuar en", substring = true).fetchSemanticsNodes().isNotEmpty() }
+                rule.onNodeWithText("Ampliar").performClick()
+                rule.waitUntil(10_000) { rule.onAllNodesWithText("ANIMEFLIX · REPRODUCTOR").fetchSemanticsNodes().isEmpty() }
                 rule.onNodeWithContentDescription("Vídeo listo").assertExists()
                 scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
                 rule.waitUntil(10_000) {
                     var portrait = false
                     scenario.onActivity { portrait = it.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT }
-                    portrait && rule.onAllNodesWithText("Reproducción nativa").fetchSemanticsNodes().isNotEmpty()
+                    portrait && rule.onAllNodesWithText("ANIMEFLIX · REPRODUCTOR").fetchSemanticsNodes().isNotEmpty()
                 }
                 rule.onNodeWithContentDescription("Vídeo listo").assertExists()
             }

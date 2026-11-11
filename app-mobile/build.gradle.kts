@@ -3,7 +3,7 @@ android {
     namespace = "com.animeflix.mobile"
     compileSdk = 35
     defaultConfig {
-        applicationId = "com.animeflix.mobile"; minSdk = 23; targetSdk = 35; versionCode = 18; versionName = "0.9.1"
+        applicationId = "com.animeflix.mobile"; minSdk = 23; targetSdk = 35; versionCode = 20; versionName = "0.10.0-preview1"
         buildConfigField("boolean", "PREVIEW_PROFILES", "false")
         resValue("string", "app_name", "AnimeFlix")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

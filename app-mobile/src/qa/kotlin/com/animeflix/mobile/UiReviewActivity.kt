@@ -22,13 +22,19 @@ import androidx.compose.material3.Text
 class UiReviewActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         val screen = intent.getStringExtra("screen") ?: "credentials"
         val now = System.currentTimeMillis()
         val anime = Anime("review-1", "One Piece", "", posterUrl = "https://cdn.animeav1.com/covers/197.jpg", sourceUrl = "https://animeav1.com/media/one-piece")
         setContent {
             MaterialTheme(colorScheme = AnimeFlixColors) {
                 Surface(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing), color = MaterialTheme.colorScheme.background) {
-                    if (screen == "credentials") {
+                    if (screen == "offline-test") {
+                        Column(Modifier.padding(28.dp)) {
+                            Text("Comprobación de descargas", style = MaterialTheme.typography.headlineMedium)
+                            Text("Descargando y verificando un episodio de prueba. Mantén esta pantalla abierta; después se abrirá el vídeo sin conexión.")
+                        }
+                    } else if (screen == "credentials") {
                         var email by remember { mutableStateOf("") }
                         var password by remember { mutableStateOf("") }
                         var submitted by remember { mutableStateOf(false) }

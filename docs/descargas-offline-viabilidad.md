@@ -1,5 +1,7 @@
 # Descargas de episodios: estudio de viabilidad
 
+Documento histórico. La primera implementación y sus límites se describen en [descargas offline](descargas-offline.md).
+
 Fecha: 10 de noviembre de 2026. Alcance: revisión del código y prueba HTTP acotada; funcionalidad todavía no implementada.
 
 ## Resultado

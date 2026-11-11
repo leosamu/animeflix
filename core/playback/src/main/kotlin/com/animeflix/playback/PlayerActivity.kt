@@ -41,10 +41,10 @@ class PlayerActivity : ComponentActivity() {
         if (!AnimeAv1Episodes.isEpisodeUrl(url)) { finish(); return }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContent {
-            MaterialTheme(colorScheme = darkColorScheme()) {
+            MaterialTheme(colorScheme = AnimeFlixColors) {
                 PlayerScreen(url, intent.getStringExtra("title") ?: "Episodio", onBack = { finish() },
                     tv = intent.getBooleanExtra("tvMode", resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_TYPE_MASK == android.content.res.Configuration.UI_MODE_TYPE_TELEVISION),
-                    preferNative = intent.getBooleanExtra("nativeMode", true))
+                    preferNative = intent.getBooleanExtra("nativeMode", true), offlineId = intent.getLongExtra("offlineId", -1))
             }
         }
     }
@@ -52,13 +52,18 @@ class PlayerActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun PlayerScreen(episodeUrl: String, title: String, onBack: () -> Unit, tv: Boolean = false, preferNative: Boolean = true, historyModel: WatchHistoryViewModel = viewModel()) {
+private fun PlayerScreen(episodeUrl: String, title: String, onBack: () -> Unit, tv: Boolean = false, preferNative: Boolean = true, offlineId: Long = -1, historyModel: WatchHistoryViewModel = viewModel()) {
     var activeEpisodeUrl by rememberSaveable { mutableStateOf(episodeUrl) }
     val history by historyModel.entries.collectAsStateWithLifecycle()
     val historyError by historyModel.error.collectAsStateWithLifecycle()
     val watched = history.find { it.episodeUrl == activeEpisodeUrl }?.watched == true
     val position = history.find { it.episodeUrl == activeEpisodeUrl }?.positionMs ?: 0
     LaunchedEffect(activeEpisodeUrl) { historyModel.opened(activeEpisodeUrl) }
+    if(offlineId >= 0) {
+        OfflinePlayerScreen(offlineId, activeEpisodeUrl, title, watched, tv, lookupPosition = { historyModel.savedPosition(activeEpisodeUrl) },
+            onProgress = historyModel::progress, onMark = { historyModel.mark(activeEpisodeUrl, !watched) }, onBack = onBack)
+        return
+    }
     var servers by remember(episodeUrl) { mutableStateOf<List<PlaybackServer>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -139,12 +144,14 @@ private fun PlayerScreen(episodeUrl: String, title: String, onBack: () -> Unit, 
             }
             historyError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             if (position > 0) Text("Minuto guardado: ${playbackTime(position)}", style = MaterialTheme.typography.bodySmall)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(selected = watched, onClick = { historyModel.mark(activeEpisodeUrl, !watched) },
-                label = { Text(if (watched) "Visto · desmarcar" else "Marcar episodio como visto") })
+                label = { Text(if (watched) "Visto · desmarcar" else "Marcar visto") })
             OutlinedButton(onClick = {
                 try { uriHandler.openUri(activeEpisodeUrl) }
                 catch (_: android.content.ActivityNotFoundException) { error = "No hay un navegador disponible." }
-            }, modifier = Modifier.fillMaxWidth()) { Text("Abrir episodio en el navegador") }
+            }, modifier = Modifier.weight(1f)) { Text("Abrir en navegador") }
+            }
         }
     }
 }

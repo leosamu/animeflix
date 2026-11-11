@@ -1,6 +1,8 @@
 package com.animeflix.playback
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -32,28 +34,28 @@ internal fun TvPlayerLayout(title: String, servers: List<PlaybackServer>, loadin
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         player(original, selected, fit, reload, !menu, { menu = true })
         if(menu) Column(Modifier.align(Alignment.CenterStart).fillMaxHeight().widthIn(max = 420.dp)
-            .background(Color(0xF0181820)).verticalScroll(rememberScrollState()).padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            .clip(RoundedCornerShape(20.dp)).background(AnimeFlixColors.surface.copy(alpha = 0.97f)).verticalScroll(rememberScrollState()).padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(title, style = MaterialTheme.typography.titleLarge)
-            Button(onClick = { menu = false }, modifier = Modifier.fillMaxWidth().focusRequester(first)) { Text("Ver vídeo · ocultar controles") }
-            onNative?.let { Button(onClick = it, modifier = Modifier.fillMaxWidth()) { Text("Usar reproducción nativa") } }
+            Button(onClick = { menu = false }, modifier = Modifier.fillMaxWidth().tvRemoteFocus().focusRequester(first)) { Text("Ver vídeo · ocultar controles") }
+            onNative?.let { Button(onClick = it, modifier = Modifier.fillMaxWidth().tvRemoteFocus()) { Text("Usar reproducción nativa") } }
             Text("Cruceta: puntero · OK: pulsar · Atrás o Menú: controles", style = MaterialTheme.typography.bodySmall)
-            Button(onClick = { reload++; menu = false }, modifier = Modifier.fillMaxWidth()) { Text("Recargar reproductor") }
-            Button(onClick = { fit = !fit; menu = false }, modifier = Modifier.fillMaxWidth()) {
+            Button(onClick = { reload++; menu = false }, modifier = Modifier.fillMaxWidth().tvRemoteFocus()) { Text("Recargar reproductor") }
+            Button(onClick = { fit = !fit; menu = false }, modifier = Modifier.fillMaxWidth().tvRemoteFocus()) {
                 Text(if(fit) "Mostrar página completa" else "Ajustar vídeo a la pantalla")
             }
             positionLabel?.let { Text(it) }
-            Button(onClick = onMark, modifier = Modifier.fillMaxWidth()) { Text(if(watched) "Visto · desmarcar" else "Marcar como visto") }
+            Button(onClick = onMark, modifier = Modifier.fillMaxWidth().tvRemoteFocus()) { Text(if(watched) "Visto · desmarcar" else "Marcar como visto") }
             if(loading) Text("Cargando servidores…")
             error?.let { Text(it) }
             Text("Servidor", style = MaterialTheme.typography.titleMedium)
-            Button(onClick = { original = true; menu = false }, modifier = Modifier.fillMaxWidth()) { Text("Reproductor de la web" + if(original) " ✓" else "") }
+            Button(onClick = { original = true; menu = false }, modifier = Modifier.fillMaxWidth().tvRemoteFocus()) { Text("Reproductor de la web" + if(original) " ✓" else "") }
             servers.forEachIndexed { index, server ->
-                Button(onClick = { original = false; selected = index; menu = false }, modifier = Modifier.fillMaxWidth()) {
+                Button(onClick = { original = false; selected = index; menu = false }, modifier = Modifier.fillMaxWidth().tvRemoteFocus()) {
                     Text(server.name + if(!original && index == selected) " ✓" else "")
                 }
             }
-            Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Volver a los episodios") }
+            Button(onClick = onBack, modifier = Modifier.fillMaxWidth().tvRemoteFocus()) { Text("Volver a los episodios") }
         }
     }
 }

@@ -11,6 +11,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import com.animeflix.playback.EpisodeActionIcon
 import com.animeflix.playback.profileViewModel
 import com.animeflix.model.Episode
 import com.animeflix.model.EpisodeInventory
@@ -24,12 +28,16 @@ fun EpisodesPanel(mediaUrl: String, model: EpisodesViewModel = profileViewModel(
     val historyError by historyModel.error.collectAsStateWithLifecycle()
     val watched = history.filter { it.mediaUrl == mediaUrl.trimEnd('/') }.associateBy { it.episodeUrl }
     val lastOpened = watched.values.filter { it.openedAt > 0 }.maxByOrNull { it.openedAt }
+    var hideWatched by rememberSaveable(mediaUrl) { mutableStateOf(false) }
     var group by rememberSaveable(mediaUrl) { mutableIntStateOf(0) }
     var previousTarget by remember(mediaUrl) { mutableStateOf<Episode?>(null) }
     LaunchedEffect(mediaUrl, inventory) {
         if(inventory?.mediaUrl == mediaUrl.trimEnd('/')) model.useInventory(inventory) else model.load(mediaUrl)
     }
-    Text("Episodios", style = MaterialTheme.typography.titleLarge)
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+ Text("Episodios", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+ FilterChip(selected = hideWatched, onClick = { hideWatched = !hideWatched; group = 0 }, label = { Text("Ocultar vistos") })
+}
     historyError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     lastOpened?.let { entry ->
         Button(onClick = { openEpisode(context, entry.episodeUrl, "Episodio ${entry.number}") }, modifier = Modifier.fillMaxWidth()) {
@@ -46,26 +54,21 @@ fun EpisodesPanel(mediaUrl: String, model: EpisodesViewModel = profileViewModel(
         }
         state.items.isEmpty() -> Text("AnimeAV1 todavía no publica episodios para este título.")
         else -> {
-            val page = group.coerceIn(0, (state.items.size - 1) / 50)
-            val visible = state.items.drop(page * 50).take(50)
-            Text("${state.items.size} episodios · ${visible.first().number} – ${visible.last().number}")
+            val filtered = state.items.filter { !hideWatched || watched[it.pageUrl]?.watched != true }
+            val page = group.coerceIn(0, ((filtered.size - 1) / 50).coerceAtLeast(0))
+            val visible = filtered.drop(page * 50).take(50)
+            Text(if(visible.isEmpty()) "Todo visto. Desactiva el filtro para ver los episodios." else "${filtered.size} episodios · ${visible.first().number} – ${visible.last().number}")
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedButton(onClick = { group = page - 1 }, enabled = page > 0) { Text("Anteriores") }
-                OutlinedButton(onClick = { group = page + 1 }, enabled = (page + 1) * 50 < state.items.size) { Text("Siguientes") }
+                OutlinedButton(onClick = { group = page + 1 }, enabled = (page + 1) * 50 < filtered.size) { Text("Siguientes") }
             }
             visible.forEach { episode ->
                 val seen = watched[episode.pageUrl]?.watched == true
-                Column(Modifier.fillMaxWidth()) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = {
-                    openEpisode(context, episode.pageUrl, episode.title)
-                }, modifier = Modifier.weight(1f)) { Text("Ver ${episode.title.lowercase()}") }
-                FilterChip(selected = seen, onClick = { historyModel.mark(episode.pageUrl, !seen) },
-                    label = { Text(if (seen) "Visto ✓" else "Marcar visto") })
-                }
-                if (state.items.any { it.number.toBigDecimal() < episode.number.toBigDecimal() }) TextButton(onClick = { previousTarget = episode }) {
-                    Text("Marcar anteriores al ${episode.number} como vistos")
-                }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    FilledTonalButton(onClick = { openEpisode(context, episode.pageUrl, episode.title) }, modifier = Modifier.weight(1f)) { Text("Episodio ${episode.number}", maxLines = 1) }
+                    com.animeflix.playback.DownloadEpisodeButton(episode.pageUrl, "Episodio ${episode.number}", compact = true)
+                    IconToggleButton(checked = seen, onCheckedChange = { historyModel.mark(episode.pageUrl, it) }, modifier = Modifier.semantics { contentDescription = if(seen) "Desmarcar episodio ${episode.number} como visto" else "Marcar episodio ${episode.number} como visto" }) { EpisodeActionIcon(watched = seen) }
+                    IconButton(onClick = { previousTarget = episode }, enabled = state.items.any { it.number.toBigDecimal() < episode.number.toBigDecimal() }, modifier = Modifier.semantics { contentDescription = "Marcar anteriores al episodio ${episode.number} como vistos" }) { EpisodeActionIcon(previous = true) }
                 }
             }
         }

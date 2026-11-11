@@ -59,6 +59,7 @@ fun AnimeFlixTvApp(catalog: CatalogViewModel = profileViewModel(), history: Watc
     val listState = rememberLazyListState()
     var searchOpen by rememberSaveable { mutableStateOf(false) }
     var draft by rememberSaveable { mutableStateOf("") }
+    var hideWatched by rememberSaveable(selectedId) { mutableStateOf(false) }
     var group by rememberSaveable(selectedId) { mutableIntStateOf(0) }
     var bulkTarget by remember { mutableStateOf<Episode?>(null) }
     fun play(url: String) { context.startActivity(Intent(context, PlayerActivity::class.java).putExtra("episodeUrl", url)
@@ -81,6 +82,7 @@ fun AnimeFlixTvApp(catalog: CatalogViewModel = profileViewModel(), history: Watc
                     Button(onClick = { catalog.navigate("catalog") }, modifier = Modifier.focusRequester(firstFocus)) { Text("Explorar") }
                     Button(onClick = { catalog.navigate("favorites") }) { Text("Mi lista") }
                     Button(onClick = { catalog.navigate("history") }) { Text("Historial") }
+                    Button(onClick = { openDownloads(context) }) { Text("Descargas") }
                     Button(onClick = { draft = query; searchOpen = true }) { Text("Buscar") }
                 }
                 Text("AnimeFlix TV", style = MaterialTheme.typography.titleLarge)
@@ -126,21 +128,24 @@ fun AnimeFlixTvApp(catalog: CatalogViewModel = profileViewModel(), history: Watc
                             episodeState.error -> item { Button(onClick = { episodes.load(current.sourceUrl, true) }) { Text("Reintentar episodios") } }
                             episodeState.items.isEmpty() -> item { Text("Este título todavía no tiene episodios publicados.") }
                             else -> {
-                                val page = group.coerceIn(0, (episodeState.items.size - 1) / 50)
-                                val visible = episodeState.items.drop(page * 50).take(50)
+                                val filtered = episodeState.items.filter { !hideWatched || seen[it.pageUrl]?.watched != true }
+                                val page = group.coerceIn(0, ((filtered.size - 1) / 50).coerceAtLeast(0))
+                                val visible = filtered.drop(page * 50).take(50)
+                                item { Button(onClick = { hideWatched = !hideWatched; group = 0 }) { Text(if(hideWatched) "✓ Ocultar vistos" else "Ocultar vistos") } }
                                 item {
                                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                         Button(onClick = { group = page - 1 }, enabled = page > 0) { Text("Anteriores") }
-                                        Text("${visible.first().number} – ${visible.last().number} · ${episodeState.items.size} episodios")
-                                        Button(onClick = { group = page + 1 }, enabled = (page + 1) * 50 < episodeState.items.size) { Text("Siguientes") }
+                                        Text(if(visible.isEmpty()) "Todo visto. Desactiva el filtro." else "${visible.first().number} – ${visible.last().number} · ${filtered.size} episodios")
+                                        Button(onClick = { group = page + 1 }, enabled = (page + 1) * 50 < filtered.size) { Text("Siguientes") }
                                     }
                                 }
                                 items(visible, key = { it.pageUrl }) { episode ->
                                     val watched = seen[episode.pageUrl]?.watched == true
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                         Button(onClick = { play(episode.pageUrl) }, modifier = Modifier.weight(1f)) { Text("Ver episodio ${episode.number}") }
-                                        Button(onClick = { history.mark(episode.pageUrl, !watched) }) { Text(if(watched) "Visto ✓ · desmarcar" else "Marcar visto") }
-                                        Button(onClick = { bulkTarget = episode }, enabled = episode != episodeState.items.first()) { Text("Anteriores vistos") }
+                                        DownloadEpisodeButton(episode.pageUrl, "Episodio ${episode.number}", compact = true)
+                                        Button(onClick = { history.mark(episode.pageUrl, !watched) }, modifier = Modifier.semantics { contentDescription = if(watched) "Desmarcar como visto" else "Marcar visto" }) { EpisodeActionIcon(watched = watched) }
+                                        Button(onClick = { bulkTarget = episode }, enabled = episode != episodeState.items.first(), modifier = Modifier.semantics { contentDescription = "Marcar anteriores como vistos" }) { EpisodeActionIcon(previous = true) }
                                     }
                                 }
                             }
