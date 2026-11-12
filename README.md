@@ -1,6 +1,6 @@
 # AnimeFlix
 
-Versión de prueba [**0.10.2-preview1**](https://github.com/leosamu/animeflix/releases/tag/v0.10.1-tv-preview.1): Descargas en la navegación inferior e iconos para reproducir los episodios descargados. Incluye la [cola serial y fuentes alternativas](docs/descargas-cola.md). Descarga [Android TV](https://github.com/leosamu/animeflix/releases/download/v0.10.1-tv-preview.1/AnimeFlix-TV.apk) o [móvil](https://github.com/leosamu/animeflix/releases/download/v0.10.1-tv-preview.1/AnimeFlix-Mobile.apk).
+Versión de prueba [**0.10.2-preview1**](https://github.com/leosamu/animeflix/releases/tag/v0.10.2-tv-preview.1): Descargas en la navegación inferior e iconos para reproducir los episodios descargados. Incluye la [cola serial y fuentes alternativas](docs/descargas-cola.md). Descarga [Android TV](https://github.com/leosamu/animeflix/releases/download/v0.10.2-tv-preview.1/AnimeFlix-TV.apk) o [móvil](https://github.com/leosamu/animeflix/releases/download/v0.10.2-tv-preview.1/AnimeFlix-Mobile.apk).
 
 
 Versión anterior [**0.10.0-preview1**](https://github.com/leosamu/animeflix/releases/tag/v0.10.0-tv-preview.1), con [descargas locales por perfil para fuentes MP4Upload compatibles](docs/descargas-offline.md), filtro de episodios vistos y reproductor compacto. Descarga [Android TV](https://github.com/leosamu/animeflix/releases/download/v0.10.0-tv-preview.1/AnimeFlix-TV.apk) o [móvil](https://github.com/leosamu/animeflix/releases/download/v0.10.0-tv-preview.1/AnimeFlix-Mobile.apk).
