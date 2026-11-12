@@ -37,7 +37,6 @@ private val colors = com.animeflix.playback.AnimeFlixColors
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AnimeFlixApp(model: CatalogViewModel = profileViewModel(), updates: LibraryUpdatesViewModel = profileViewModel()) {
-    val downloadContext = androidx.compose.ui.platform.LocalContext.current
     val state by model.state.collectAsStateWithLifecycle()
     val query by model.query.collectAsStateWithLifecycle()
     val section by model.section.collectAsStateWithLifecycle()
@@ -55,7 +54,7 @@ fun AnimeFlixApp(model: CatalogViewModel = profileViewModel(), updates: LibraryU
         Scaffold(topBar = {
             TopAppBar(title = { Text("ANIMEFLIX", maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary) },
                 navigationIcon = { if (selectedId != null) TextButton(onClick = { model.open(null) }) { Text("Volver") } },
-                actions = { TextButton(onClick = { com.animeflix.playback.openDownloads(downloadContext) }) { Text("Descargas") }; if(selectedId == null && section != "history") {
+                actions = { if(selectedId == null && section in setOf("catalog", "favorites")) {
                     Row(Modifier.padding(end = 8.dp).toggleable(hideCaughtUp, role = Role.Switch, onValueChange = model::setHideCaughtUp)
                         .semantics { contentDescription = "Ocultar series al día" }, verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -68,10 +67,11 @@ fun AnimeFlixApp(model: CatalogViewModel = profileViewModel(), updates: LibraryU
                 NavigationBarItem(selected = section == "catalog", onClick = { model.navigate("catalog") }, icon = { Text("▦") }, label = { Text("Explorar") })
                 NavigationBarItem(selected = section == "favorites", onClick = { model.navigate("favorites") }, icon = { Text("★") }, label = { Text("Mi lista") })
                 NavigationBarItem(selected = section == "history", onClick = { model.navigate("history") }, icon = { Text("◷") }, label = { Text("Historial") })
+                NavigationBarItem(selected = section == "downloads", onClick = { model.navigate("downloads") }, icon = { Text("↓") }, label = { Text("Descargas") })
             }
         }) { padding ->
             Column(Modifier.fillMaxSize().padding(padding)) {
-                state.error?.let { message ->
+                state.error?.takeIf { section != "downloads" }?.let { message ->
                     Surface(color = MaterialTheme.colorScheme.errorContainer) {
                         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(message, Modifier.weight(1f), color = MaterialTheme.colorScheme.onErrorContainer)

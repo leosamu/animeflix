@@ -39,7 +39,7 @@ class DownloadLibraryActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DownloadLibrary(onBack: () -> Unit) {
+fun DownloadLibrary(onBack: (() -> Unit)? = null) {
     val context = LocalContext.current
     val store = remember { EpisodeDownloads(context) }
     val account by remember { AccountManager.create(context) }.state.collectAsState()
@@ -61,7 +61,8 @@ private fun DownloadLibrary(onBack: () -> Unit) {
             delay(1_000)
         }
     } }
-    Scaffold(topBar = { TopAppBar(title = { Text("Descargas") }, navigationIcon = { TextButton(onClick = onBack) { Text("Volver") } }) }) { padding ->
+    Scaffold(contentWindowInsets = if(onBack == null) WindowInsets(0, 0, 0, 0) else ScaffoldDefaults.contentWindowInsets,
+        topBar = { if(onBack != null) TopAppBar(title = { Text("Descargas") }, navigationIcon = { TextButton(onClick = onBack) { Text("Volver") } }) }) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
                 Text("Tu biblioteca sin conexión", style = MaterialTheme.typography.headlineSmall)
@@ -131,6 +132,13 @@ fun DownloadEpisodeButton(episodeUrl: String, title: String, server: PlaybackSer
     var metered by remember(episodeUrl) { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var message by remember(episodeUrl) { mutableStateOf<String?>(null) }
+    val downloads = currentProfileDownloads()
+    val downloaded = downloads?.firstOrNull { it.episodeUrl == episodeUrl && it.complete }
+    val pending = downloads?.any { it.episodeUrl == episodeUrl && it.active } == true
+    fun openLocal() {
+        downloaded?.let { entry -> context.startActivity(Intent(context, PlayerActivity::class.java)
+            .putExtra("episodeUrl", entry.episodeUrl).putExtra("title", title).putExtra("offlineId", entry.id)) }
+    }
     fun prepare() {
         if(selected != null) { confirm = true; return }
         busy = true; message = null
@@ -146,10 +154,18 @@ fun DownloadEpisodeButton(episodeUrl: String, title: String, server: PlaybackSer
         }
     }
     if(compact) {
-        IconButton(enabled = !busy, modifier = Modifier.tvRemoteFocus().semantics { contentDescription = "Descargar $title" }, onClick = ::prepare) { Text("↓", style = MaterialTheme.typography.titleLarge) }
+        IconButton(enabled = !busy && downloads != null, modifier = Modifier.tvRemoteFocus().semantics {
+            contentDescription = when { downloaded != null -> "Reproducir $title sin conexión"; pending -> "Ver descarga de $title"; else -> "Descargar $title" }
+        }, onClick = { when { downloaded != null -> openLocal(); pending -> openDownloads(context); else -> prepare() } }) {
+            when { downloaded != null -> PlayMark(Modifier.size(22.dp), AnimeFlixColors.primary)
+                pending || downloads == null -> CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                else -> Text("↓", style = MaterialTheme.typography.titleLarge) }
+        }
         message?.let { text -> AlertDialog(onDismissRequest = { message = null }, title = { Text("Descargas") }, text = { Text(text) }, confirmButton = { TextButton(onClick = { message = null }) { Text("Aceptar") } }) }
     } else Column {
-        OutlinedButton(enabled = !busy, modifier = Modifier.tvRemoteFocus(), onClick = ::prepare) { Text(if(busy) "Preparando descarga…" else "↓ Descargar episodio") }
+        OutlinedButton(enabled = !busy && downloads != null, modifier = Modifier.tvRemoteFocus(), onClick = {
+            when { downloaded != null -> openLocal(); pending -> openDownloads(context); else -> prepare() }
+        }) { Text(when { downloaded != null -> "▶ Ver sin conexión"; pending -> "Ver descarga en curso"; busy -> "Preparando descarga…"; else -> "↓ Descargar episodio" }) }
         message?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
     }
     if(confirm) AlertDialog(onDismissRequest = { confirm = false }, title = { Text("Descargar para ver offline") },

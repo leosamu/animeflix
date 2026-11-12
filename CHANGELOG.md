@@ -1,5 +1,11 @@
 # Historial de versiones
 
+## v0.10.2-tv-preview.1 — 2026-11-12
+
+- Descargas pasa a ser la cuarta pestaña inferior del móvil, junto a Explorar, Mi lista e Historial. La biblioteca permanece accesible durante la carga o un fallo del catálogo.
+- La acción de cada episodio muestra reproducir sin conexión cuando ya está descargado, progreso/acceso a la cola si está pendiente y descargar si todavía no está disponible. Estado compartido por perfil en móvil/TV; un único observador para toda la lista.
+
+
 ## v0.10.1-tv-preview.1 — 2026-11-12
 
 - Cola persistente de un capítulo activo por dispositivo; enlaces preparados al llegar el turno y cancelación independiente de los capítulos en espera.
