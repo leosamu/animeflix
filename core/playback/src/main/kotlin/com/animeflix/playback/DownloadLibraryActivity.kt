@@ -9,7 +9,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -39,7 +39,7 @@ class DownloadLibraryActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DownloadLibrary(onBack: (() -> Unit)? = null) {
+fun DownloadLibrary(onBack: (() -> Unit)? = null, animeTitles: Map<String, String> = emptyMap()) {
     val context = LocalContext.current
     val store = remember { EpisodeDownloads(context) }
     val account by remember { AccountManager.create(context) }.state.collectAsState()
@@ -49,6 +49,8 @@ fun DownloadLibrary(onBack: (() -> Unit)? = null) {
     var busy by remember(owner) { mutableStateOf(false) }
     var target by remember(owner) { mutableStateOf<OfflineEpisode?>(null) }
     val scope = rememberCoroutineScope()
+    val completed = items.filter { it.complete }.groupBy { it.episodeUrl.substringBeforeLast('/') }
+    val visible = completed.values.flatMap { episodes -> episodes.sortedBy { it.episodeUrl.substringAfterLast('/').toBigDecimalOrNull() } } + items.filterNot { it.complete }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(Unit) { store.resumeQueue() }
     LaunchedEffect(owner, lifecycle) { lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -71,8 +73,17 @@ fun DownloadLibrary(onBack: (() -> Unit)? = null) {
                 Text("Una descarga cada vez, alternando fuentes compatibles sin cambiar de idioma. Por defecto se espera una red sin coste medido.", style = MaterialTheme.typography.bodySmall)
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
-            if(items.isEmpty()) item { Text("Todavía no tienes episodios descargados en este perfil.") }
-            items(items, key = { it.id }) { entry ->
+            if(completed.isEmpty()) item { Text("Todavía no tienes animes con capítulos descargados en este perfil.") }
+            itemsIndexed(visible, key = { _, entry -> entry.id }) { position, entry ->
+                val media = entry.episodeUrl.substringBeforeLast('/')
+                if(entry.complete && (position == 0 || visible[position - 1].episodeUrl.substringBeforeLast('/') != media)) {
+                    Text(animeTitles[media] ?: media.substringAfterLast('/').replace('-', ' '), style = MaterialTheme.typography.titleLarge)
+                    Text("${completed[media].orEmpty().size} capítulos sin conexión", style = MaterialTheme.typography.bodySmall, color = AnimeFlixColors.onSurfaceVariant)
+                    Spacer(Modifier.height(8.dp))
+                } else if(!entry.complete && (position == 0 || visible[position - 1].complete)) {
+                    Text("Cola y descargas incompletas", style = MaterialTheme.typography.titleLarge)
+                    Spacer(Modifier.height(8.dp))
+                }
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(entry.title, style = MaterialTheme.typography.titleMedium)

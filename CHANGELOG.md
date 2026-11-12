@@ -1,5 +1,11 @@
 # Historial de versiones
 
+## v0.10.3-tv-preview.1 — 2026-11-12
+
+- Corrige la ruta de la pestaña Descargas: muestra la biblioteca local en lugar del catálogo completo, incluso sin conexión.
+- Agrupa los capítulos terminados por anime y separa la cola y las descargas incompletas. Conserva el aislamiento por perfil.
+- Prueba de navegación en emulador: biblioteca vacía sin catálogo y regreso a Explorar.
+
 ## v0.10.2-tv-preview.1 — 2026-11-12
 
 - Descargas pasa a ser la cuarta pestaña inferior del móvil, junto a Explorar, Mi lista e Historial. La biblioteca permanece accesible durante la carga o un fallo del catálogo.

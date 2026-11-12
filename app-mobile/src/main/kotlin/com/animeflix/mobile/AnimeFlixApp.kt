@@ -80,6 +80,8 @@ fun AnimeFlixApp(model: CatalogViewModel = profileViewModel(), updates: LibraryU
                     }
                 }
                 when {
+                    section == "downloads" -> com.animeflix.playback.DownloadLibrary(
+                        animeTitles = state.items.associate { it.sourceUrl.trimEnd('/') to it.title })
                     state.loading || (state.items.isEmpty() && state.refreshing) -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                     selected != null -> AnimeDetails(selected, availability[selected.sourceUrl.trimEnd('/')],
                         inventories.find { it.mediaUrl == selected.sourceUrl.trimEnd('/') },
