@@ -48,6 +48,7 @@ fun AnimeFlixApp(model: CatalogViewModel = profileViewModel(), updates: LibraryU
     val checking by updates.refreshing.collectAsStateWithLifecycle()
     val updateError by updates.error.collectAsStateWithLifecycle()
     LibraryRefreshOnResume(updates, selected?.sourceUrl, section == "favorites", !BuildConfig.DEMO_CATALOG)
+    com.animeflix.playback.CatalogRefreshOnResume(section == "catalog" && selectedId == null) { model.refreshRecent() }
     BackHandler(enabled = selectedId != null) { model.open(null) }
     BackHandler(enabled = selectedId == null && section != "catalog") { model.navigate("catalog") }
     MaterialTheme(colorScheme = colors) {
@@ -92,7 +93,7 @@ fun AnimeFlixApp(model: CatalogViewModel = profileViewModel(), updates: LibraryU
                         Column(Modifier.padding(horizontal = 20.dp)) {
                             Text(if (section == "favorites") "Mi lista" else "Tu próxima aventura", style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
-                            Text(if (section == "favorites") "Tus favoritos, siempre a mano." else "Descubre historias y guarda las que te interesen.",
+                            Text(if (section == "favorites") "Tus favoritos, siempre a mano." else "Primero, animes con capítulos recién publicados.",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp, bottom = 16.dp))
                             OutlinedTextField(value = query, onValueChange = model::search, modifier = Modifier.fillMaxWidth(), singleLine = true,
                                 label = { Text("Buscar anime") }, trailingIcon = { if (query.isNotEmpty()) TextButton(onClick = { model.search("") }) { Text("Borrar") } })

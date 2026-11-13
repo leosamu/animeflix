@@ -1,5 +1,11 @@
 # Historial de versiones
 
+## v0.10.4-tv-preview.1 — 2026-11-13
+
+- Explorar prioriza las series del listado público de capítulos recientes de AnimeAV1, sin duplicarlas. El resto del catálogo y Mi lista conservan orden alfabético.
+- Guarda el último orden para usarlo sin conexión y lo revisa al abrir o volver a Explorar, con caché de 15 minutos. No altera historial, favoritos ni progreso.
+- Pruebas del lector con tarjetas públicas reales y de navegación con orden persistido y recreación de pantalla.
+
 ## v0.10.3-tv-preview.1 — 2026-11-12
 
 - Corrige la ruta de la pestaña Descargas: muestra la biblioteca local en lugar del catálogo completo, incluso sin conexión.

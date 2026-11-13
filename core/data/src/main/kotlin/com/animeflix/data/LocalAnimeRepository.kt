@@ -109,6 +109,7 @@ class LocalAnimeRepository private constructor(private val dao: AnimeDao, privat
     }
     override fun observeCatalog(): Flow<List<Anime>> = dao.observeAll().map { rows -> rows.map { Anime(it.id, it.title, it.synopsis, it.favorite, it.posterUrl, it.sourceUrl) } }
     suspend fun cacheCatalog(items: List<Anime>) = dao.cache(items.map { AnimeEntity(it.id, it.title, it.synopsis, false, it.posterUrl, it.sourceUrl) })
+    internal suspend fun cacheNewCatalog(items: List<Anime>) = dao.insert(items.map { AnimeEntity(it.id, it.title, it.synopsis, false, it.posterUrl, it.sourceUrl) })
     override suspend fun setFavorite(id: String, favorite: Boolean) = dao.setFavorite(id, favorite)
     override suspend fun seedDemo() = dao.insert(listOf(
         AnimeEntity("demo-1", "Viaje estelar", "Catálogo ficticio de demostración."),

@@ -68,6 +68,7 @@ fun AnimeFlixTvApp(catalog: CatalogViewModel = profileViewModel(), history: Watc
     LaunchedEffect(selected?.sourceUrl, inventory) { selected?.let {
         if(inventory != null) episodes.useInventory(inventory) else episodes.load(it.sourceUrl)
     } }
+    com.animeflix.playback.CatalogRefreshOnResume(section == "catalog" && selectedId == null) { catalog.refreshRecent() }
     LaunchedEffect(selectedId, section) { firstFocus.requestFocus() }
     BackHandler(enabled = selectedId != null || section != "catalog") {
         if (selectedId != null) catalog.open(null) else catalog.navigate("catalog")
@@ -191,7 +192,7 @@ fun AnimeFlixTvApp(catalog: CatalogViewModel = profileViewModel(), history: Watc
                     val matching = state.items.filter { (section != "favorites" || it.favorite) &&
                         (it.title.contains(query.trim(), true) || it.synopsis.contains(query.trim(), true)) }
                     val visible = matching.filter { !hideCaughtUp || availability[it.sourceUrl.trimEnd('/')]?.caughtUp != true }
-                    Text(if(section == "favorites") "Mi lista" else "Explorar AnimeAV1", style = MaterialTheme.typography.headlineMedium)
+                    Text(if(section == "favorites") "Mi lista" else "Explorar · Últimas actualizaciones", style = MaterialTheme.typography.headlineMedium)
                     if(section == "favorites") {
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             Button(onClick = { updates.refreshFavorites(force = true) }, enabled = !checking) { Text(if(checking) "Comprobando episodios…" else "Actualizar episodios") }

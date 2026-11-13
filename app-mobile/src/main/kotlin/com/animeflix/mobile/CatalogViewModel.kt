@@ -23,6 +23,8 @@ class CatalogViewModel(app: Application, private val saved: SavedStateHandle) : 
     private val actionError = MutableStateFlow<String?>(null)
     private val syncState = MutableStateFlow(SyncState())
     private val remote = AnimeAv1Catalog()
+    private val recent = com.animeflix.data.RecentAnimeFeed.create(app)
+    private var recentRequest: Job? = null
     private var request: Job? = null
     private var page = 0
     val query = saved.getStateFlow("query", "")
@@ -51,6 +53,10 @@ class CatalogViewModel(app: Application, private val saved: SavedStateHandle) : 
             if (error is CancellationException) throw error
             emit(CatalogState(loading = false, error = "No se pudo cargar el catálogo local."))
         }
+    }.combine(recent.state) { catalog, feed ->
+        catalog.copy(items = recent.order(catalog.items, feed.ids), error = catalog.error ?: feed.error)
+    }.combine(section) { catalog, section ->
+        if (section == "catalog") catalog else catalog.copy(items = catalog.items.sortedBy { it.title.lowercase() })
     }.combine(actionError) { catalog, error -> catalog.copy(error = error ?: catalog.error) }
         .combine(syncState) { catalog, sync -> catalog.copy(refreshing = sync.refreshing, canLoadMore = sync.more) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CatalogState())
@@ -61,16 +67,22 @@ class CatalogViewModel(app: Application, private val saved: SavedStateHandle) : 
         saved["query"] = value
         if (!BuildConfig.DEMO_CATALOG) load(reset = true, debounce = true)
     }
-    fun navigate(value: String) { saved["section"] = value; saved["selected"] = null }
+    fun navigate(value: String) { saved["section"] = value; saved["selected"] = null; if (value == "catalog") refreshRecent() }
     fun open(id: String?) { saved["selected"] = id }
     fun retry() {
         actionError.value = null
         refresh.value++
+        refreshRecent(force = true)
         if (!BuildConfig.DEMO_CATALOG) load(reset = true)
+    }
+    fun refreshRecent(force: Boolean = false) {
+        if (BuildConfig.DEMO_CATALOG || recentRequest?.isActive == true) return
+        recentRequest = viewModelScope.launch { recent.refresh(force) }
     }
     fun loadMore() { if (!syncState.value.refreshing && syncState.value.more) load(reset = false) }
 
     private fun load(reset: Boolean, debounce: Boolean = false) {
+        if (reset && query.value.isBlank()) refreshRecent()
         request?.cancel()
         request = viewModelScope.launch {
             syncState.value = SyncState(refreshing = true)
