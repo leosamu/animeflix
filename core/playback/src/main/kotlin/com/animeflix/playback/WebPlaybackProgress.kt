@@ -6,6 +6,9 @@ import androidx.webkit.WebViewFeature
 import com.animeflix.data.AnimeAv1Episodes
 import com.animeflix.model.WatchEntry
 import org.json.JSONObject
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import com.animeflix.data.SkipInterval
 
 /** The only native operation exposed is validated, episode-scoped playback telemetry. */
 class WebPlaybackProgress(
@@ -14,13 +17,16 @@ class WebPlaybackProgress(
     private val lookup: (String) -> WatchEntry?,
     private val save: (String, Long, Long) -> Unit,
     private val onEnded: (String, Long, Long) -> Unit = { _, _, _ -> },
-    private val autoPlay: Boolean = false
+    private val autoPlay: Boolean = false,
+    private val scope: CoroutineScope? = null,
+    private val onSkip: (SkipInterval?, () -> Unit) -> Unit = { _, _ -> }
 ) {
-    private data class Binding(val episode: String, val origin: String)
+    private data class Binding(val episode: String, val origin: String, var intervals: List<SkipInterval> = emptyList(), var savedAt: Long = 0)
     private val bindings = mutableMapOf<String, Binding>()
     private val ended = mutableSetOf<String>()
+    private var shown: Pair<String, SkipInterval?>? = null
     fun navigate(url: String) {
-        if (AnimeAv1Episodes.isEpisodeUrl(url) && episodeUrl != url) { episodeUrl = url; bindings.clear(); ended.clear() }
+        if (AnimeAv1Episodes.isEpisodeUrl(url) && episodeUrl != url) { episodeUrl = url; bindings.clear(); ended.clear(); shown = null; onSkip(null, {}) }
     }
 
     fun install(): Boolean {
@@ -38,7 +44,13 @@ class WebPlaybackProgress(
                 if (!duration.isFinite() || duration !in 60.0..86400.0) return@runCatching
                 if (data.getString("kind") == "ready") {
                     if (bindings.size >= 16 && nonce !in bindings) return@runCatching
-                    bindings[nonce] = Binding(episodeUrl, origin.toString())
+                    if (nonce in bindings) return@runCatching
+                    val binding = Binding(episodeUrl, origin.toString())
+                    bindings[nonce] = binding
+                    scope?.launch {
+                        val intervals = com.animeflix.data.AniSkipTimes(view.context).load(binding.episode, (duration * 1000).toLong(), false)
+                        if (bindings[nonce] === binding && episodeUrl == binding.episode) binding.intervals = intervals
+                    }
                     val previous = lookup(episodeUrl)
                     val seconds = (previous?.positionMs ?: 0) / 1000.0
                     // Do not seek into an unrelated video with a different duration.
@@ -50,7 +62,23 @@ class WebPlaybackProgress(
                     if (binding.episode != episodeUrl || binding.origin != origin.toString()) return@runCatching
                     val position = data.getDouble("position")
                     if (position.isFinite() && position in 0.0..duration) {
-                        save(episodeUrl, (position * 1000).toLong(), (duration * 1000).toLong())
+                        val now = android.os.SystemClock.elapsedRealtime()
+                        if (data.optBoolean("force") || data.getString("kind") == "ended" || now - binding.savedAt >= 5_000) {
+                            binding.savedAt = now
+                            save(episodeUrl, (position * 1000).toLong(), (duration * 1000).toLong())
+                        }
+                        val interval = binding.intervals.firstOrNull { it.active((position * 1000).toLong(), (duration * 1000).toLong()) }
+                        val key = nonce to interval
+                        if (shown != key) {
+                            shown = key
+                            onSkip(interval) {
+                                if (interval != null && bindings[nonce] === binding && binding.episode == episodeUrl) {
+                                    runCatching { reply.postMessage(JSONObject().put("nonce", nonce).put("kind", "seek")
+                                        .put("position", interval.target((duration * 1000).toLong()) / 1000.0).toString()) }
+                                    shown = null; onSkip(null, {})
+                                }
+                            }
+                        }
                         if (data.getString("kind") == "ended" && com.animeflix.data.playbackReachedEnd((position * 1000).toLong(), (duration * 1000).toLong()) && ended.add(nonce))
                             onEnded(episodeUrl, (position * 1000).toLong(), (duration * 1000).toLong())
                     }
@@ -70,7 +98,13 @@ class WebPlaybackProgress(
               AnimeFlixProgress.onmessage = function(event) {
                 try {
                   var data = JSON.parse(event.data), record = records[data.nonce];
-                  if (!record || record.ready) return;
+                  if (!record) return;
+                  if (data.kind === 'seek') {
+                    var target = Number(data.position);
+                    if (record.ready && isFinite(target) && target >= 0 && target <= record.video.duration - 2) record.video.currentTime = target;
+                    return;
+                  }
+                  if (record.ready) return;
                   record.ready = true;
                   var v = record.video, p = Number(data.position);
                   if (isFinite(p) && p >= 5 && p < v.duration - 3) v.currentTime = p;
@@ -82,13 +116,13 @@ class WebPlaybackProgress(
                 videos.add(v);
                 var nonce = Date.now().toString(36) + Math.random().toString(36).slice(2);
                 var record = {video:v, ready:false, played:false, last:0}; records[nonce] = record;
-                function send(kind) {
+                function send(kind, force) {
                   if (!isFinite(v.duration) || v.duration < 60 || v.duration > 86400) return;
-                  AnimeFlixProgress.postMessage(JSON.stringify({kind:kind,nonce:nonce,position:v.currentTime,duration:v.duration}));
+                  AnimeFlixProgress.postMessage(JSON.stringify({kind:kind,nonce:nonce,position:v.currentTime,duration:v.duration,force:force===true}));
                 }
                 function report(force) {
                   if (!record.ready || !record.played || v.seeking || !isFinite(v.currentTime)) return;
-                  if (force || Date.now() - record.last >= 5000) { record.last = Date.now(); send('progress'); }
+                  if (force || Date.now() - record.last >= 500) { record.last = Date.now(); send('progress', force); }
                 }
                 v.addEventListener('playing', function(){record.played=true; if(!record.ready) send('ready');});
                 v.addEventListener('timeupdate', function(){report(false);});

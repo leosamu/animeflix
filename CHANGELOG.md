@@ -1,5 +1,11 @@
 # Historial de versiones
 
+## v0.10.6-tv-preview.1 — 2026-11-16
+
+- Botones Saltar opening/ending con tiempos compatibles de AniSkip; consulta asíncrona, caché local, sin cambios visibles cuando faltan datos.
+- Saltar ending conserva poscréditos. Si el intervalo llega al final deja reproducir los últimos 2,5 segundos; visto y siguiente siguen dependiendo del final real del vídeo.
+- Explorar prioriza 24 series distintas por fecha de su último capítulo: portada y horario, comprobando la fecha del episodio. Usa publicación o, si la fuente la deja vacía, alta del capítulo. Caché por fecha y sin relleno alfabético de novedades.
+
 ## v0.10.5-tv-preview.1 — 2026-11-16
 
 - Novedades: conserva todas las series recientes de la fuente y completa hasta 12 distintas con novedades anteriores guardadas si una actualización devuelve menos. Respeta búsqueda y Ocultar al día.

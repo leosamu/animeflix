@@ -6,11 +6,11 @@ import org.junit.Test
 import java.io.IOException
 
 class RecentAnimeFeedTest {
-    @Test fun fillsTwelveDistinctRecentSeriesFromPreviousFeedWhenNewPageContainsRepeats() {
+    @Test fun fillsTwentyFourDistinctRecentSeriesFromPreviousFeedWhenNewPageContainsRepeats() {
         val current = listOf("new", "new", "previous-4")
-        val previous = (1..20).map { "previous-$it" }
+        val previous = (1..40).map { "previous-$it" }
         val result = recentWindow(current, previous)
-        assertEquals(12, result.size)
+        assertEquals(24, result.size)
         assertEquals(listOf("new", "previous-4"), result.take(2))
         assertEquals(result.size, result.distinct().size)
         assertEquals(previous, recentWindow(previous, current))

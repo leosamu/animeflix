@@ -6,10 +6,12 @@ import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMuxer
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.view.View
 import android.view.ViewGroup
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.*
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.StreamKey
@@ -45,7 +47,9 @@ import java.util.concurrent.Executor
 @RunWith(AndroidJUnit4::class)
 class OfflineContinuationTest {
     @get:Rule val rule = createEmptyComposeRule()
-    @Test fun realPlayerMarksEndAdvancesOnceAndStopsBeforeMissingDownload(): Unit = runBlocking {
+    @Test fun realPlayerMarksEndAdvancesOnceAndStopsBeforeMissingDownload(): Unit = runBlocking { checkContinuation(false) }
+    @Test fun tvSkipButtonIsReachableAndReturnsFocusToPlayer(): Unit = runBlocking { checkContinuation(true) }
+    private suspend fun checkContinuation(tvMode: Boolean) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         check(context.packageName.endsWith(".qa"))
@@ -57,6 +61,8 @@ class OfflineContinuationTest {
         val sample = File(context.cacheDir, "continuation-sample.mp4")
         val stretched = File(context.cacheDir, "continuation-90s.mp4")
         val index = context.getSharedPreferences("offline_queue_v2", Context.MODE_PRIVATE)
+        val skipCache = context.getSharedPreferences("aniskip_times_v1", Context.MODE_PRIVATE)
+        var skipKey: String? = null
         val methods = Class.forName("com.animeflix.playback.OfflineCacheFiles")
         val pool = methods.getField("INSTANCE").get(null)
         val ids = listOf(-2_000_001L, -2_000_002L)
@@ -68,6 +74,16 @@ class OfflineContinuationTest {
                 while(true) { val count = input.read(buffer); if(count < 0) break; total += count; check(total < 2_000_000); output.write(buffer, 0, count) }
             } }
             stretchTimestamps(sample, stretched)
+            val metadata = MediaMetadataRetriever()
+            val duration = try { metadata.setDataSource(stretched.absolutePath); checkNotNull(metadata.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)).toLong() }
+                finally { metadata.release() }
+            skipKey = "$media/1"
+            val skipResponse = JSONObject().put("found", true).put("results", org.json.JSONArray().apply {
+                fun interval(type: String, start: Long, end: Long) = JSONObject().put("skipType", type).put("episodeLength", duration / 1000.0)
+                    .put("interval", JSONObject().put("startTime", start / 1000.0).put("endTime", end / 1000.0))
+                put(interval("op", 2_000, 12_000)); put(interval("ed", duration - 20_000, duration - 6_000))
+            })
+            skipCache.edit().putString(skipKey, JSONObject().put("at", System.currentTimeMillis()).put("ttl", 604_800_000L).put("response", skipResponse.toString()).toString()).commit()
             ids.forEachIndexed { offset, id ->
                 val cache = methods.getMethod("acquire", Context::class.java, java.lang.Long.TYPE).invoke(pool, context, id) as SimpleCache
                 try {
@@ -85,7 +101,7 @@ class OfflineContinuationTest {
             }
             instrumentation.uiAutomation.executeShellCommand("input keyevent KEYCODE_WAKEUP").close()
             ActivityScenario.launch<PlayerActivity>(Intent(context, PlayerActivity::class.java).putExtra("episodeUrl", "$media/1")
-                .putExtra("title", "QA automático 1").putExtra("tvMode", false).putExtra("offlineId", ids.first())).use { scenario ->
+                .putExtra("title", "QA automático 1").putExtra("tvMode", tvMode).putExtra("offlineId", ids.first())).use { scenario ->
                 fun finishCurrent() {
                     rule.waitUntil(30_000) {
                         var ready = false
@@ -100,6 +116,34 @@ class OfflineContinuationTest {
                         player.seekTo(player.duration - 200); player.play()
                     }
                 }
+                rule.waitUntil(30_000) {
+                    var ready = false
+                    scenario.onActivity { ready = findPlayer(it.window.decorView)?.player?.isPlaying == true }
+                    ready
+                }
+                scenario.onActivity { findPlayer(it.window.decorView)!!.player!!.seekTo(3_000) }
+                rule.waitUntil(10_000) { rule.onAllNodesWithText("Saltar opening").fetchSemanticsNodes().isNotEmpty() }
+                if(tvMode) {
+                    android.os.ParcelFileDescriptor.AutoCloseInputStream(instrumentation.uiAutomation.executeShellCommand("input keyevent KEYCODE_DPAD_UP")).use { it.readBytes() }
+                    rule.waitUntil(5_000) {
+                        runCatching { rule.onNodeWithText("Saltar opening").assertIsFocused(); true }.getOrDefault(false)
+                    }
+                    rule.onNodeWithText("Saltar opening").assertIsFocused()
+                }
+                rule.onNodeWithText("Saltar opening").performClick()
+                scenario.onActivity { assertTrue(findPlayer(it.window.decorView)!!.player!!.currentPosition >= 12_000) }
+                if(tvMode) scenario.onActivity { assertTrue(findPlayer(it.window.decorView)!!.hasFocus()) }
+                scenario.onActivity { val player = findPlayer(it.window.decorView)!!.player!!; player.seekTo(player.duration - 19_000) }
+                rule.waitUntil(10_000) { rule.onAllNodesWithText("Saltar ending").fetchSemanticsNodes().isNotEmpty() }
+                rule.onNodeWithText("Saltar ending").performClick()
+                scenario.onActivity {
+                    val player = findPlayer(it.window.decorView)!!.player!!; player.pause()
+                    assertTrue(player.currentPosition >= player.duration - 6_000)
+                    assertTrue(player.currentPosition < player.duration - 2_000)
+                }
+                assertFalse(repository.observeWatchHistory().first().single { it.episodeUrl == "$media/1" }.watched)
+                assertFalse(repository.observeWatchHistory().first().any { it.episodeUrl == "$media/2" && it.openedAt > 0 })
+                scenario.onActivity { findPlayer(it.window.decorView)!!.player!!.play() }
                 finishCurrent()
                 rule.waitUntil(30_000) { runBlocking { repository.observeWatchHistory().first().any { it.episodeUrl == "$media/2" && it.openedAt > 0 } } }
                 assertTrue(repository.observeWatchHistory().first().single { it.episodeUrl == "$media/1" }.watched)
@@ -108,6 +152,7 @@ class OfflineContinuationTest {
                 assertFalse(repository.observeWatchHistory().first().any { it.episodeUrl == "$media/3" && it.openedAt > 0 })
             }
         } finally {
+            skipKey?.let { skipCache.edit().remove(it).commit() }
             ids.forEach { id -> index.edit().remove(id.toString()).commit(); methods.getMethod("erase", Context::class.java, java.lang.Long.TYPE).invoke(pool, context, id) }
             sample.delete(); stretched.delete(); accounts.signOut()
         }

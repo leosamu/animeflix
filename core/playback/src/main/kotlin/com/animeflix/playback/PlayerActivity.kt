@@ -203,12 +203,25 @@ private fun EmbeddedPlayer(url: String, episodeUrl: String, modifier: Modifier, 
     val controlsFocus = remember { FocusRequester() }
     val showControls by rememberUpdatedState(onControlsRequested)
     val fit by rememberUpdatedState(fitVideo)
+    val skipScope = rememberCoroutineScope()
+    var skip by remember(url) { mutableStateOf<com.animeflix.data.SkipInterval?>(null) }
+    var skipAction by remember(url) { mutableStateOf<() -> Unit>({}) }
+    val skipFocus = remember { FocusRequester() }
+    val skipView = remember { arrayOfNulls<RemotePlayerWebView>(1) }
+    val skipControl: @Composable () -> Unit = {
+        skip?.let { interval -> FilledTonalButton(onClick = { skipAction(); skip = null; if(tv) skipView[0]?.controlVideo() },
+            modifier = Modifier.padding(8.dp).focusRequester(skipFocus).tvRemoteFocus()) {
+            Text(if(interval.type == "op") "Saltar opening" else "Saltar ending")
+        } }
+    }
     LaunchedEffect(tv) { if(tv && !tvFullScreen) controlsFocus.requestFocus() }
     val webView = remember(url) {
         RemotePlayerWebView(context, tv).apply {
-            onExitControls = { if(tvFullScreen) showControls() else controlsFocus.requestFocus() }
+            skipView[0] = this
+            onExitControls = { if(skip != null) skipFocus.requestFocus() else if(tvFullScreen) showControls() else controlsFocus.requestFocus() }
             val progress = WebPlaybackProgress(this, episodeUrl, { if(autoPlay) null else lookup(it) }, { page, position, duration -> saveProgress(page, position, duration) },
-                { page, position, duration -> complete(page, position, duration) }, autoPlay)
+                { page, position, duration -> complete(page, position, duration) }, autoPlay, skipScope,
+                { interval, action -> skip = interval; skipAction = action })
             progress.install()
             setBackgroundColor(android.graphics.Color.BLACK)
             settings.javaScriptEnabled = true
@@ -294,10 +307,11 @@ private fun EmbeddedPlayer(url: String, episodeUrl: String, modifier: Modifier, 
             owner.lifecycle.removeObserver(observer)
             fullView = null; fullCallback?.onCustomViewHidden(); fullCallback = null
             webView.stopLoading(); webView.loadUrl("about:blank"); webView.removeAllViews(); webView.destroy()
+            if(skipView[0] === webView) skipView[0] = null
         }
     }
     if(tvFullScreen) {
-        Box(modifier) { AndroidView(factory = { webView }, modifier = Modifier.fillMaxSize()) }
+        Column(modifier) { skipControl(); AndroidView(factory = { webView }, modifier = Modifier.fillMaxWidth().weight(1f)) }
     } else Column(modifier) {
         if(tv) {
             Button(onClick = { webView.controlVideo() }, modifier = Modifier.focusRequester(controlsFocus)) { Text("Controlar vídeo con mando") }
@@ -305,7 +319,8 @@ private fun EmbeddedPlayer(url: String, episodeUrl: String, modifier: Modifier, 
         }
         if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
         if (error) Text("El servidor no está disponible o no permite la reproducción aquí. Prueba otro o abre el episodio en el navegador.")
-        AndroidView(factory = { webView }, modifier = Modifier.fillMaxSize())
+        skipControl()
+        AndroidView(factory = { webView }, modifier = Modifier.fillMaxWidth().weight(1f))
     }
     if (fullView != null) {
         val hideFullScreen = {
@@ -315,7 +330,7 @@ private fun EmbeddedPlayer(url: String, episodeUrl: String, modifier: Modifier, 
         }
         Dialog(onDismissRequest = hideFullScreen,
             properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
-            AndroidView(factory = { fullView!! }, modifier = Modifier.fillMaxSize())
+            Column(Modifier.fillMaxSize()) { skipControl(); AndroidView(factory = { fullView!! }, modifier = Modifier.fillMaxWidth().weight(1f)) }
         }
         BackHandler(onBack = hideFullScreen)
     }

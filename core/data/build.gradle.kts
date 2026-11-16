@@ -21,6 +21,7 @@ android {
 ksp { arg("room.schemaLocation", "$projectDir/schemas") }
 dependencies {
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
     implementation("org.jsoup:jsoup:1.18.3")
     api(project(":core:model"))
     implementation("androidx.room:room-runtime:2.7.1")

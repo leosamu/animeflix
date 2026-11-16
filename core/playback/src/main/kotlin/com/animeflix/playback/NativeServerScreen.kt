@@ -19,6 +19,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -26,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -166,6 +170,13 @@ internal fun NativeVideo(source: ResolvedVideo, episodeUrl: String, resumePositi
     onEnded: (String, Long, Long) -> Unit = { _, _, _ -> }) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val skipTimes = remember(context) { com.animeflix.data.AniSkipTimes(context) }
+    var mediaDuration by remember(episodeUrl) { mutableLongStateOf(0) }
+    var intervals by remember(episodeUrl) { mutableStateOf(emptyList<com.animeflix.data.SkipInterval>()) }
+    var activeSkip by remember(episodeUrl) { mutableStateOf<com.animeflix.data.SkipInterval?>(null) }
+    val skipFocus = remember { FocusRequester() }
+    var skipFocused by remember { mutableStateOf(false) }
+    var playerView by remember { mutableStateOf<PlayerView?>(null) }
     val save by rememberUpdatedState(onProgress)
     val completed by rememberUpdatedState(onEnded)
     val changeFullScreen by rememberUpdatedState(onFullScreen)
@@ -235,7 +246,33 @@ internal fun NativeVideo(source: ResolvedVideo, episodeUrl: String, resumePositi
         onDispose { persist(); lifecycle.removeObserver(observer); player.removeListener(listener); player.release(); offlineCacheId?.let { OfflineCacheFiles.release(context, it) } }
     }
     LaunchedEffect(player) { while(true) { delay(5_000); persist() } }
+    LaunchedEffect(episodeUrl, mediaDuration, offline) {
+        intervals = emptyList()
+        if(mediaDuration in 60_000..86_400_000) intervals = skipTimes.load(episodeUrl, mediaDuration, offline)
+    }
+    LaunchedEffect(player, intervals, lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while(true) {
+                val duration = player.duration
+                if(duration in 60_000..86_400_000) mediaDuration = duration
+                activeSkip = if(!failure && player.playbackState != Player.STATE_ENDED)
+                    intervals.firstOrNull { it.active(player.currentPosition, duration) } else null
+                delay(500)
+            }
+        }
+    }
     Column(modifier) {
+        activeSkip?.let { interval ->
+            FilledTonalButton(onClick = {
+                player.seekTo(interval.target(player.duration))
+                activeSkip = null
+                persist()
+                if(tv) playerView?.requestFocus()
+            }, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp).focusRequester(skipFocus)
+                .onFocusChanged { skipFocused = it.hasFocus }.tvRemoteFocus()) {
+                Text(if(interval.type == "op") "Saltar opening" else "Saltar ending")
+            }
+        }
         if(buffering && !failure) LinearProgressIndicator(Modifier.fillMaxWidth())
         if(failure) {
             Text(if(offline) "No se pudo leer el archivo descargado. Vuelve a Descargas para eliminarlo y descargarlo de nuevo."
@@ -243,7 +280,17 @@ internal fun NativeVideo(source: ResolvedVideo, episodeUrl: String, resumePositi
                 else "No se pudo reproducir el vídeo. El enlace puede haber caducado o el servidor no responder.")
             TextButton(onClick = onRetry) { Text(if(offline) "Volver a Descargas" else "Obtener enlace nuevo") }
         }
-        AndroidView(factory = { PlayerView(it).apply {
+        AndroidView(factory = { viewContext -> object : PlayerView(viewContext) {
+            override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+                // Intercept before Media3's child controls consume UP; otherwise the Compose button is unreachable.
+                if(tv && event.keyCode == android.view.KeyEvent.KEYCODE_DPAD_UP && activeSkip != null) {
+                    if(event.action == android.view.KeyEvent.ACTION_DOWN) runCatching { skipFocus.requestFocus() }
+                    return true
+                }
+                return super.dispatchKeyEvent(event)
+            }
+        }.apply {
+            playerView = this
             this.player = player; keepScreenOn = true; useController = true
             setFullscreenButtonClickListener { value -> changeFullScreen(value) }
             if(tv) setOnKeyListener { _, key, event ->
@@ -257,7 +304,7 @@ internal fun NativeVideo(source: ResolvedVideo, episodeUrl: String, resumePositi
             if(tv) {
                 it.useController = fullScreen
                 it.isFocusable = fullScreen; it.isFocusableInTouchMode = fullScreen
-                if(fullScreen && !it.hasFocus()) { it.requestFocus(); it.showController() }
+                if(fullScreen && !it.hasFocus() && !skipFocused) { it.requestFocus(); it.showController() }
                 if(!fullScreen) { it.hideController(); it.clearFocus() }
             }
         },
