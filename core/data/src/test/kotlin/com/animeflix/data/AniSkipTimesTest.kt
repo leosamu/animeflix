@@ -4,6 +4,16 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class AniSkipTimesTest {
+    @Test fun recapIsAvailableOnlyDuringItsIntervalIncludingShortRecaps() {
+        val recap = parseSkipTimes(response(row("recap", 0.0, 5.0)), 120_000).single()
+        assertEquals("Saltar recap", recap.label)
+        assertTrue(recap.active(0, 120_000))
+        assertFalse(recap.active(5_000, 120_000))
+        assertEquals(5_000L, recap.target(120_000))
+    }
+    @Test fun recapFromAnotherEditionDoesNotBecomeASkipForThisVideo() {
+        assertTrue(parseSkipTimes(response(row("recap", 0.0, 30.0, 130.0)), 120_000).isEmpty())
+    }
     private fun response(vararg rows: String) = """{"found":true,"results":[${rows.joinToString()}]}"""
     private fun row(type: String, start: Double, end: Double, duration: Double = 120.0) =
         """{"skipType":"$type","interval":{"startTime":$start,"endTime":$end},"episodeLength":$duration}"""

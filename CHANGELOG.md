@@ -1,5 +1,11 @@
 # Historial de versiones
 
+## v0.10.7-tv-preview.1 — 2026-11-16
+
+- Añade Saltar recap con tiempos compatibles de AniSkip y la misma validación de edición/duración.
+- Integra opening, ending y recap sobre el área de vídeo, abajo a la derecha, sin reducir la imagen y manteniendo el manejo con mando y pantalla completa.
+- Renueva las consultas antiguas para incluir recap; conserva los intervalos guardados offline y los reutiliza si falla la actualización.
+
 ## v0.10.6-tv-preview.1 — 2026-11-16
 
 - Botones Saltar opening/ending con tiempos compatibles de AniSkip; consulta asíncrona, caché local, sin cambios visibles cuando faltan datos.

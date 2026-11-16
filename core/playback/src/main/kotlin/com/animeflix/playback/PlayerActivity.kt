@@ -15,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
@@ -208,10 +209,10 @@ private fun EmbeddedPlayer(url: String, episodeUrl: String, modifier: Modifier, 
     var skipAction by remember(url) { mutableStateOf<() -> Unit>({}) }
     val skipFocus = remember { FocusRequester() }
     val skipView = remember { arrayOfNulls<RemotePlayerWebView>(1) }
-    val skipControl: @Composable () -> Unit = {
+    val skipControl: @Composable (Modifier) -> Unit = { modifier ->
         skip?.let { interval -> FilledTonalButton(onClick = { skipAction(); skip = null; if(tv) skipView[0]?.controlVideo() },
-            modifier = Modifier.padding(8.dp).focusRequester(skipFocus).tvRemoteFocus()) {
-            Text(if(interval.type == "op") "Saltar opening" else "Saltar ending")
+            modifier = modifier.focusRequester(skipFocus).tvRemoteFocus()) {
+            Text(interval.label)
         } }
     }
     LaunchedEffect(tv) { if(tv && !tvFullScreen) controlsFocus.requestFocus() }
@@ -311,7 +312,10 @@ private fun EmbeddedPlayer(url: String, episodeUrl: String, modifier: Modifier, 
         }
     }
     if(tvFullScreen) {
-        Column(modifier) { skipControl(); AndroidView(factory = { webView }, modifier = Modifier.fillMaxWidth().weight(1f)) }
+        Box(modifier) {
+            AndroidView(factory = { webView }, modifier = Modifier.fillMaxSize())
+            skipControl(Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 88.dp))
+        }
     } else Column(modifier) {
         if(tv) {
             Button(onClick = { webView.controlVideo() }, modifier = Modifier.focusRequester(controlsFocus)) { Text("Controlar vídeo con mando") }
@@ -319,8 +323,10 @@ private fun EmbeddedPlayer(url: String, episodeUrl: String, modifier: Modifier, 
         }
         if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
         if (error) Text("El servidor no está disponible o no permite la reproducción aquí. Prueba otro o abre el episodio en el navegador.")
-        skipControl()
-        AndroidView(factory = { webView }, modifier = Modifier.fillMaxWidth().weight(1f))
+        Box(Modifier.fillMaxWidth().weight(1f)) {
+            AndroidView(factory = { webView }, modifier = Modifier.fillMaxSize())
+            skipControl(Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 88.dp))
+        }
     }
     if (fullView != null) {
         val hideFullScreen = {
@@ -330,7 +336,10 @@ private fun EmbeddedPlayer(url: String, episodeUrl: String, modifier: Modifier, 
         }
         Dialog(onDismissRequest = hideFullScreen,
             properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
-            Column(Modifier.fillMaxSize()) { skipControl(); AndroidView(factory = { fullView!! }, modifier = Modifier.fillMaxWidth().weight(1f)) }
+            Box(Modifier.fillMaxSize()) {
+                AndroidView(factory = { fullView!! }, modifier = Modifier.fillMaxSize())
+                skipControl(Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 88.dp))
+            }
         }
         BackHandler(onBack = hideFullScreen)
     }

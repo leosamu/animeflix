@@ -81,7 +81,7 @@ class OfflineContinuationTest {
             val skipResponse = JSONObject().put("found", true).put("results", org.json.JSONArray().apply {
                 fun interval(type: String, start: Long, end: Long) = JSONObject().put("skipType", type).put("episodeLength", duration / 1000.0)
                     .put("interval", JSONObject().put("startTime", start / 1000.0).put("endTime", end / 1000.0))
-                put(interval("op", 2_000, 12_000)); put(interval("ed", duration - 20_000, duration - 6_000))
+                put(interval("recap", 0, 15_000)); put(interval("op", 15_000, 30_000)); put(interval("ed", duration - 20_000, duration - 6_000))
             })
             skipCache.edit().putString(skipKey, JSONObject().put("at", System.currentTimeMillis()).put("ttl", 604_800_000L).put("response", skipResponse.toString()).toString()).commit()
             ids.forEachIndexed { offset, id ->
@@ -121,7 +121,19 @@ class OfflineContinuationTest {
                     scenario.onActivity { ready = findPlayer(it.window.decorView)?.player?.isPlaying == true }
                     ready
                 }
-                scenario.onActivity { findPlayer(it.window.decorView)!!.player!!.seekTo(3_000) }
+                scenario.onActivity { findPlayer(it.window.decorView)!!.player!!.seekTo(1_000) }
+                rule.waitUntil(10_000) { rule.onAllNodesWithText("Saltar recap").fetchSemanticsNodes().isNotEmpty() }
+                val button = rule.onNodeWithText("Saltar recap").fetchSemanticsNode().boundsInRoot
+                val video = rule.onNodeWithContentDescription("Vídeo listo").fetchSemanticsNode().boundsInRoot
+                assertTrue("El salto debe estar dentro del reproductor", button.left >= video.left && button.top >= video.top && button.right <= video.right && button.bottom <= video.bottom)
+                instrumentation.uiAutomation.takeScreenshot()?.let { screenshot ->
+                    File(context.getExternalFilesDir(null), "recap-overlay-${if(tvMode) "tv" else "mobile"}.png").outputStream().use { screenshot.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+                    screenshot.recycle()
+                }
+                rule.onNodeWithText("Saltar recap").performClick()
+                scenario.onActivity { assertTrue(findPlayer(it.window.decorView)!!.player!!.currentPosition >= 15_000) }
+                assertFalse(repository.observeWatchHistory().first().single { it.episodeUrl == "$media/1" }.watched)
+                scenario.onActivity { findPlayer(it.window.decorView)!!.player!!.seekTo(16_000) }
                 rule.waitUntil(10_000) { rule.onAllNodesWithText("Saltar opening").fetchSemanticsNodes().isNotEmpty() }
                 if(tvMode) {
                     android.os.ParcelFileDescriptor.AutoCloseInputStream(instrumentation.uiAutomation.executeShellCommand("input keyevent KEYCODE_DPAD_UP")).use { it.readBytes() }
@@ -131,7 +143,7 @@ class OfflineContinuationTest {
                     rule.onNodeWithText("Saltar opening").assertIsFocused()
                 }
                 rule.onNodeWithText("Saltar opening").performClick()
-                scenario.onActivity { assertTrue(findPlayer(it.window.decorView)!!.player!!.currentPosition >= 12_000) }
+                scenario.onActivity { assertTrue(findPlayer(it.window.decorView)!!.player!!.currentPosition >= 30_000) }
                 if(tvMode) scenario.onActivity { assertTrue(findPlayer(it.window.decorView)!!.hasFocus()) }
                 scenario.onActivity { val player = findPlayer(it.window.decorView)!!.player!!; player.seekTo(player.duration - 19_000) }
                 rule.waitUntil(10_000) { rule.onAllNodesWithText("Saltar ending").fetchSemanticsNodes().isNotEmpty() }

@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -262,17 +263,6 @@ internal fun NativeVideo(source: ResolvedVideo, episodeUrl: String, resumePositi
         }
     }
     Column(modifier) {
-        activeSkip?.let { interval ->
-            FilledTonalButton(onClick = {
-                player.seekTo(interval.target(player.duration))
-                activeSkip = null
-                persist()
-                if(tv) playerView?.requestFocus()
-            }, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp).focusRequester(skipFocus)
-                .onFocusChanged { skipFocused = it.hasFocus }.tvRemoteFocus()) {
-                Text(if(interval.type == "op") "Saltar opening" else "Saltar ending")
-            }
-        }
         if(buffering && !failure) LinearProgressIndicator(Modifier.fillMaxWidth())
         if(failure) {
             Text(if(offline) "No se pudo leer el archivo descargado. Vuelve a Descargas para eliminarlo y descargarlo de nuevo."
@@ -280,6 +270,7 @@ internal fun NativeVideo(source: ResolvedVideo, episodeUrl: String, resumePositi
                 else "No se pudo reproducir el vídeo. El enlace puede haber caducado o el servidor no responder.")
             TextButton(onClick = onRetry) { Text(if(offline) "Volver a Descargas" else "Obtener enlace nuevo") }
         }
+        Box(Modifier.fillMaxWidth().weight(1f)) {
         AndroidView(factory = { viewContext -> object : PlayerView(viewContext) {
             override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
                 // Intercept before Media3's child controls consume UP; otherwise the Compose button is unreachable.
@@ -310,6 +301,18 @@ internal fun NativeVideo(source: ResolvedVideo, episodeUrl: String, resumePositi
         },
             modifier = Modifier.fillMaxSize().semantics { contentDescription = if(firstFrame) "Vídeo listo" else "Cargando vídeo" },
             onRelease = { it.player = null })
+        activeSkip?.let { interval ->
+            FilledTonalButton(onClick = {
+                player.seekTo(interval.target(player.duration))
+                activeSkip = null
+                persist()
+                if(tv) playerView?.requestFocus()
+            }, modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 88.dp).focusRequester(skipFocus)
+                .onFocusChanged { skipFocused = it.hasFocus }.tvRemoteFocus()) {
+                Text(interval.label)
+            }
+        }
+        }
     }
 }
 
