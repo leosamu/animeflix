@@ -39,6 +39,11 @@ internal fun prioritizeRecent(items: List<Anime>, recentIds: List<String>): List
     return items.sortedWith(compareBy<Anime> { rank[it.id] ?: Int.MAX_VALUE }.thenBy { it.title.lowercase() }.thenBy { it.id })
 }
 
+internal fun recentWindow(current: List<String>, previous: List<String>): List<String> {
+    val fresh = current.distinct()
+    return fresh + previous.distinct().filterNot { it in fresh }.take((12 - fresh.size).coerceAtLeast(0))
+}
+
 data class RecentCatalogState(val ids: List<String>, val error: String? = null)
 
 /** Shared device cache: the public publication feed is identical for every viewing profile. */
@@ -59,7 +64,7 @@ class RecentAnimeFeed private constructor(context: Context) {
                 val items = parseRecentAnime(html)
                 // Do not replace full descriptions, cover art or favorites already cached from the catalogue.
                 local.cacheNewCatalog(items)
-                val ids = items.map { it.id }
+                val ids = recentWindow(items.map { it.id }, mutableState.value.ids)
                 if (!preferences.edit().putString("ids", ids.joinToString("\n"))
                         .putLong("updatedAt", System.currentTimeMillis()).commit()) throw IOException("No se pudo guardar el orden")
                 mutableState.value = RecentCatalogState(ids)

@@ -12,12 +12,15 @@ class WebPlaybackProgress(
     private val view: WebView,
     private var episodeUrl: String,
     private val lookup: (String) -> WatchEntry?,
-    private val save: (String, Long, Long) -> Unit
+    private val save: (String, Long, Long) -> Unit,
+    private val onEnded: (String, Long, Long) -> Unit = { _, _, _ -> },
+    private val autoPlay: Boolean = false
 ) {
     private data class Binding(val episode: String, val origin: String)
     private val bindings = mutableMapOf<String, Binding>()
+    private val ended = mutableSetOf<String>()
     fun navigate(url: String) {
-        if (AnimeAv1Episodes.isEpisodeUrl(url) && episodeUrl != url) { episodeUrl = url; bindings.clear() }
+        if (AnimeAv1Episodes.isEpisodeUrl(url) && episodeUrl != url) { episodeUrl = url; bindings.clear(); ended.clear() }
     }
 
     fun install(): Boolean {
@@ -41,12 +44,16 @@ class WebPlaybackProgress(
                     // Do not seek into an unrelated video with a different duration.
                     val durationMatches = previous != null && kotlin.math.abs(previous.durationMs / 1000.0 - duration) < 3
                     val seek = if (durationMatches && seconds in 5.0..(duration - 3)) seconds else 0.0
-                    reply.postMessage(JSONObject().put("nonce", nonce).put("position", seek).toString())
-                } else if (data.getString("kind") == "progress") {
+                    reply.postMessage(JSONObject().put("nonce", nonce).put("position", seek).put("autoPlay", autoPlay).toString())
+                } else if (data.getString("kind") in setOf("progress", "ended")) {
                     val binding = bindings[nonce] ?: return@runCatching
                     if (binding.episode != episodeUrl || binding.origin != origin.toString()) return@runCatching
                     val position = data.getDouble("position")
-                    if (position.isFinite() && position in 0.0..duration) save(episodeUrl, (position * 1000).toLong(), (duration * 1000).toLong())
+                    if (position.isFinite() && position in 0.0..duration) {
+                        save(episodeUrl, (position * 1000).toLong(), (duration * 1000).toLong())
+                        if (data.getString("kind") == "ended" && com.animeflix.data.playbackReachedEnd((position * 1000).toLong(), (duration * 1000).toLong()) && ended.add(nonce))
+                            onEnded(episodeUrl, (position * 1000).toLong(), (duration * 1000).toLong())
+                    }
                 }
             }
         }
@@ -67,6 +74,7 @@ class WebPlaybackProgress(
                   record.ready = true;
                   var v = record.video, p = Number(data.position);
                   if (isFinite(p) && p >= 5 && p < v.duration - 3) v.currentTime = p;
+                  if (data.autoPlay === true) v.play().catch(function(){});
                 } catch (_) {}
               };
               function attach(v) {
@@ -85,7 +93,7 @@ class WebPlaybackProgress(
                 v.addEventListener('playing', function(){record.played=true; if(!record.ready) send('ready');});
                 v.addEventListener('timeupdate', function(){report(false);});
                 v.addEventListener('pause', function(){report(true);});
-                v.addEventListener('ended', function(){report(true);});
+                v.addEventListener('ended', function(){report(true); if(record.ready && record.played && !v.seeking && v.ended) send('ended');});
                 window.addEventListener('pagehide', function(){report(true);});
                 send('ready');
               }

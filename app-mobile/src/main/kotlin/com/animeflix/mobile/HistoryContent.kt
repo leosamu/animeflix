@@ -33,8 +33,9 @@ import java.util.Locale
 @Composable
 internal fun HistoryContent(catalog: List<Anime>, entries: List<WatchEntry>, error: String?,
     onPlay: (WatchEntry) -> Unit, onWatched: (WatchEntry) -> Unit) {
-    val opened = entries.filter { it.openedAt > 0 }.sortedByDescending { it.openedAt }
+    val opened = com.animeflix.data.latestHistoryPerSeries(entries)
     val resume = opened.firstOrNull { !it.watched && it.positionMs > 0 && it.durationMs > it.positionMs }
+    val activity = opened.filterNot { it.episodeUrl == resume?.episodeUrl }
     val animeByUrl = catalog.associateBy { it.sourceUrl.trimEnd('/') }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item {
@@ -46,7 +47,7 @@ internal fun HistoryContent(catalog: List<Anime>, entries: List<WatchEntry>, err
         }
         error?.let { message -> item { Text(message, color = MaterialTheme.colorScheme.error) } }
         if (resume != null) item {
-            ContinueWatchingCard(resume, animeByUrl[resume.mediaUrl], onPlay = { onPlay(resume) })
+            ContinueWatchingCard(resume, animeByUrl[resume.mediaUrl], onPlay = { onPlay(resume) }, onWatched = { onWatched(resume) })
         }
         if (opened.isEmpty()) item {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(24.dp),
@@ -60,13 +61,13 @@ internal fun HistoryContent(catalog: List<Anime>, entries: List<WatchEntry>, err
         } else item {
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("Actividad reciente", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f).semantics { heading() })
-                Text("${opened.size} ${if (opened.size == 1) "episodio" else "episodios"}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("${opened.size} ${if (opened.size == 1) "serie" else "series"}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        itemsIndexed(opened, key = { _, entry -> entry.episodeUrl }) { index, entry ->
+        itemsIndexed(activity, key = { _, entry -> entry.episodeUrl }) { index, entry ->
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 val day = historyDay(entry.openedAt)
-                if (index == 0 || day != historyDay(opened[index - 1].openedAt)) {
+                if (index == 0 || day != historyDay(activity[index - 1].openedAt)) {
                     Text(day, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
                 }
@@ -82,7 +83,7 @@ internal fun HistoryContent(catalog: List<Anime>, entries: List<WatchEntry>, err
 }
 
 @Composable
-private fun ContinueWatchingCard(entry: WatchEntry, anime: Anime?, onPlay: () -> Unit) {
+private fun ContinueWatchingCard(entry: WatchEntry, anime: Anime?, onPlay: () -> Unit, onWatched: () -> Unit) {
     Card(onClick = onPlay, shape = RoundedCornerShape(26.dp), border = BorderStroke(1.dp, Color.White.copy(alpha = .09f)),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), modifier = Modifier.fillMaxWidth()) {
         Box(Modifier.fillMaxWidth().heightIn(min = 240.dp)) {
@@ -96,6 +97,7 @@ private fun ContinueWatchingCard(entry: WatchEntry, anime: Anime?, onPlay: () ->
                 Button(onClick = onPlay, shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)) {
                     PlayMark(); Spacer(Modifier.width(10.dp)); Text("Continuar", fontWeight = FontWeight.Bold)
                 }
+                TextButton(onClick = onWatched) { Text("Marcar como visto") }
             }
         }
     }

@@ -47,7 +47,8 @@ import kotlinx.coroutines.delay
 @Composable
 internal fun NativeServerScreen(title: String, episodeUrl: String, servers: List<PlaybackServer>, loading: Boolean,
     serverError: String?, position: Long, watched: Boolean, onProgress: (String, Long, Long) -> Unit,
-    onMark: () -> Unit, onBack: () -> Unit, onWeb: () -> Unit, tv: Boolean = false) {
+    onMark: () -> Unit, onBack: () -> Unit, onWeb: () -> Unit, tv: Boolean = false,
+    onEnded: (String, Long, Long) -> Unit = { _, _, _ -> }) {
     var selectedUrl by rememberSaveable(episodeUrl) { mutableStateOf<String?>(null) }
     val selected = servers.find { it.embedUrl == selectedUrl } ?: servers.firstOrNull { Mp4UploadResolver.supports(it.embedUrl) }
         ?: servers.firstOrNull { ProviderPolicy.supports(it.embedUrl) }
@@ -56,13 +57,13 @@ internal fun NativeServerScreen(title: String, episodeUrl: String, servers: List
     var video by remember(episodeUrl, selected?.embedUrl, retry) { mutableStateOf<ResolvedVideo?>(null) }
     var resolving by remember(episodeUrl, selected?.embedUrl, retry) { mutableStateOf(false) }
     var error by remember(episodeUrl, selected?.embedUrl, retry) { mutableStateOf<String?>(null) }
-    var fullScreen by rememberSaveable(episodeUrl) { mutableStateOf(false) }
+    var fullScreen by rememberSaveable { mutableStateOf(false) }
     val activity = LocalContext.current.findPlayerActivity()
     BackHandler(enabled = fullScreen) { fullScreen = false }
     DisposableEffect(activity) {
         val previous = activity?.requestedOrientation
         onDispose {
-            if(activity != null) {
+            if(activity != null && !activity.isChangingConfigurations) {
                 activity.requestedOrientation = previous ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
                 WindowCompat.getInsetsController(activity.window, activity.window.decorView).show(WindowInsetsCompat.Type.systemBars())
                 WindowCompat.setDecorFitsSystemWindows(activity.window, true)
@@ -114,7 +115,7 @@ internal fun NativeServerScreen(title: String, episodeUrl: String, servers: List
                 video?.let { source -> key(episodeUrl, source.url, retry) {
                     NativeVideo(source, episodeUrl, position, Modifier.fillMaxSize(), onProgress,
                         onRetry = { retry++; fullScreen = false }, fullScreen = fullScreen,
-                        onFullScreen = { fullScreen = it }, tv = true)
+                        onFullScreen = { fullScreen = it }, tv = true, onEnded = onEnded)
                 } }
             })
         return
@@ -142,7 +143,7 @@ internal fun NativeServerScreen(title: String, episodeUrl: String, servers: List
             }
             video?.let { source -> key(episodeUrl, source.url, retry) {
                 NativeVideo(source, episodeUrl, position, Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(if(fullScreen) 0.dp else 16.dp)), onProgress, onRetry = { retry++ },
-                    fullScreen = fullScreen, onFullScreen = { fullScreen = it })
+                    fullScreen = fullScreen, onFullScreen = { fullScreen = it }, onEnded = onEnded)
             } } ?: Spacer(Modifier.weight(1f))
             if(!fullScreen) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -161,10 +162,12 @@ internal fun NativeServerScreen(title: String, episodeUrl: String, servers: List
 @Composable
 internal fun NativeVideo(source: ResolvedVideo, episodeUrl: String, resumePosition: Long, modifier: Modifier,
     onProgress: (String, Long, Long) -> Unit, onRetry: () -> Unit, fullScreen: Boolean, onFullScreen: (Boolean) -> Unit,
-    tv: Boolean = false, offline: Boolean = false, offlineCacheId: Long? = null, offlineStreamKeys: List<androidx.media3.common.StreamKey> = emptyList()) {
+    tv: Boolean = false, offline: Boolean = false, offlineCacheId: Long? = null, offlineStreamKeys: List<androidx.media3.common.StreamKey> = emptyList(),
+    onEnded: (String, Long, Long) -> Unit = { _, _, _ -> }) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val save by rememberUpdatedState(onProgress)
+    val completed by rememberUpdatedState(onEnded)
     val changeFullScreen by rememberUpdatedState(onFullScreen)
     var failure by remember { mutableStateOf(false) }
     var rejected by remember { mutableStateOf(false) }
@@ -198,13 +201,23 @@ internal fun NativeVideo(source: ResolvedVideo, episodeUrl: String, resumePositi
     fun persist() {
         val duration = player.duration
         val position = player.currentPosition
-        if(played && duration in 60_000..86_400_000 && position in 0..duration) save(episodeUrl, position, duration)
+        if(played && duration in 60_000..86_400_000 && position in 0..(duration + 1_500)) save(episodeUrl, position.coerceAtMost(duration), duration)
     }
     DisposableEffect(player, lifecycle) {
         var resumeOnForeground = true
+        var endReported = false
         val listener = object : Player.Listener {
             override fun onRenderedFirstFrame() { firstFrame = true }
-            override fun onPlaybackStateChanged(playbackState: Int) { buffering = playbackState == Player.STATE_BUFFERING }
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                buffering = playbackState == Player.STATE_BUFFERING
+                if (playbackState == Player.STATE_ENDED) Log.d("AnimeFlixPlayback", "Ended: played=$played position=${player.currentPosition} duration=${player.duration}")
+                if (playbackState == Player.STATE_ENDED && played && !endReported &&
+                    com.animeflix.data.playbackReachedEnd(player.currentPosition, player.duration)) {
+                    endReported = true
+                    persist()
+                    completed(episodeUrl, player.currentPosition, player.duration)
+                }
+            }
             override fun onIsPlayingChanged(isPlaying: Boolean) { if(isPlaying) played = true else persist() }
             override fun onPlayerError(error: PlaybackException) {
                 failure = true

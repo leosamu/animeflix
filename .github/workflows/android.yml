@@ -48,6 +48,8 @@ jobs:
         run: node scripts/test-tv-video-layout.cjs
       - name: Check provider media selection
         run: node scripts/test-provider-source.cjs
+      - name: Check web playback completion
+        run: node scripts/test-web-playback-progress.cjs
       - name: Save verification reports
         if: always()
         uses: actions/upload-artifact@v4

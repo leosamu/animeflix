@@ -1,5 +1,13 @@
 # Historial de versiones
 
+## v0.10.5-tv-preview.1 — 2026-11-16
+
+- Novedades: conserva todas las series recientes de la fuente y completa hasta 12 distintas con novedades anteriores guardadas si una actualización devuelve menos. Respeta búsqueda y Ocultar al día.
+- Al terminar realmente el vídeo, guarda el progreso, marca visto y continúa una sola vez con el siguiente capítulo publicado. Sin conexión exige tener descargado el siguiente, sin saltar huecos ni especiales conocidos.
+- Historial móvil/TV con el último capítulo abierto por serie, manteniendo todas las marcas y el progreso. Seguir viendo no duplica la serie en la actividad.
+- Corrige restauración de orientación durante recreación del reproductor y tolera el pequeño desfase de posición que Media3 informa al terminar.
+- 33 pruebas JVM, prueba del puente web y dos pruebas instrumentadas: historial resumido y continuación real de dos vídeos locales de prueba.
+
 ## v0.10.4-tv-preview.1 — 2026-11-13
 
 - Explorar prioriza las series del listado público de capítulos recientes de AnimeAV1, sin duplicarlas. El resto del catálogo y Mi lista conservan orden alfabético.

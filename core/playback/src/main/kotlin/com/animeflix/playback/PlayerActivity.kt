@@ -54,19 +54,42 @@ class PlayerActivity : ComponentActivity() {
 @Composable
 private fun PlayerScreen(episodeUrl: String, title: String, onBack: () -> Unit, tv: Boolean = false, preferNative: Boolean = true, offlineId: Long = -1, historyModel: WatchHistoryViewModel = viewModel()) {
     var activeEpisodeUrl by rememberSaveable { mutableStateOf(episodeUrl) }
+    var activeOfflineId by rememberSaveable { mutableLongStateOf(offlineId) }
+    var autoGeneration by rememberSaveable { mutableIntStateOf(0) }
+    var automaticEpisode by rememberSaveable { mutableStateOf<String?>(null) }
     val history by historyModel.entries.collectAsStateWithLifecycle()
     val historyError by historyModel.error.collectAsStateWithLifecycle()
     val watched = history.find { it.episodeUrl == activeEpisodeUrl }?.watched == true
-    val position = history.find { it.episodeUrl == activeEpisodeUrl }?.positionMs ?: 0
+    val position = if (automaticEpisode == activeEpisodeUrl) 0 else history.find { it.episodeUrl == activeEpisodeUrl }?.let {
+        if (com.animeflix.data.playbackReachedEnd(it.positionMs, it.durationMs)) 0 else it.positionMs
+    } ?: 0
+    val activeTitle = if (activeEpisodeUrl == episodeUrl) title else "Episodio ${activeEpisodeUrl.substringAfterLast('/')}"
+    val completing by historyModel.completing.collectAsStateWithLifecycle()
+    val onEnded: (String, Long, Long) -> Unit = { url, played, duration ->
+        if (url == activeEpisodeUrl) historyModel.completed(url, played, duration, activeOfflineId != -1L) { next ->
+            if (activeEpisodeUrl == url) {
+                automaticEpisode = next.url
+                activeOfflineId = next.offlineId
+                activeEpisodeUrl = next.url
+                autoGeneration++
+            }
+        }
+    }
+    val onProgress: (String, Long, Long) -> Unit = { url, played, duration ->
+        historyModel.progress(url, played, duration)
+        if (url == activeEpisodeUrl && played > 0) automaticEpisode = null
+    }
     LaunchedEffect(activeEpisodeUrl) { historyModel.opened(activeEpisodeUrl) }
-    if(offlineId != -1L) {
-        OfflinePlayerScreen(offlineId, activeEpisodeUrl, title, watched, tv, lookupPosition = { historyModel.savedPosition(activeEpisodeUrl) },
-            onProgress = historyModel::progress, onMark = { historyModel.mark(activeEpisodeUrl, !watched) }, onBack = onBack)
+    if(activeOfflineId != -1L) {
+        OfflinePlayerScreen(activeOfflineId, activeEpisodeUrl, activeTitle, watched, tv,
+            lookupPosition = { if (automaticEpisode == activeEpisodeUrl) 0 else historyModel.savedPosition(activeEpisodeUrl) },
+            onProgress = onProgress, onMark = { historyModel.mark(activeEpisodeUrl, !watched) }, onBack = onBack, onEnded = onEnded,
+            message = historyError, completing = completing)
         return
     }
-    var servers by remember(episodeUrl) { mutableStateOf<List<PlaybackServer>>(emptyList()) }
-    var loading by remember { mutableStateOf(true) }
-    var error by remember { mutableStateOf<String?>(null) }
+    var servers by remember(activeEpisodeUrl) { mutableStateOf<List<PlaybackServer>>(emptyList()) }
+    var loading by remember(activeEpisodeUrl) { mutableStateOf(true) }
+    var error by remember(activeEpisodeUrl) { mutableStateOf<String?>(null) }
     var retry by remember { mutableIntStateOf(0) }
     var playerReload by remember { mutableIntStateOf(0) }
     var selected by rememberSaveable { mutableIntStateOf(0) }
@@ -85,9 +108,12 @@ private fun PlayerScreen(episodeUrl: String, title: String, onBack: () -> Unit, 
         } finally { loading = false }
     }
     if(nativeMode) {
-        NativeServerScreen(title, activeEpisodeUrl, servers, loading, historyError ?: error, position, watched,
-            onProgress = historyModel::progress, onMark = { historyModel.mark(activeEpisodeUrl, !watched) },
-            onBack = onBack, onWeb = { nativeMode = false }, tv = tv)
+        Box(Modifier.fillMaxSize()) {
+        NativeServerScreen(activeTitle, activeEpisodeUrl, servers, loading, historyError ?: error, position, watched,
+            onProgress = onProgress, onMark = { historyModel.mark(activeEpisodeUrl, !watched) },
+            onBack = onBack, onWeb = { nativeMode = false }, tv = tv, onEnded = onEnded)
+        if (completing) LinearProgressIndicator(Modifier.fillMaxWidth())
+        }
         return
     }
     if(tv) {
@@ -95,14 +121,14 @@ private fun PlayerScreen(episodeUrl: String, title: String, onBack: () -> Unit, 
             servers, loading, historyError ?: error, watched, if(position > 0) "Minuto guardado: ${playbackTime(position)}" else null,
             onMark = { historyModel.mark(activeEpisodeUrl, !watched) }, onBack = onBack,
             onNative = { nativeMode = true }) { usePage, index, fit, reload, controlsActive, showMenu ->
-            val startUrl = remember(usePage, reload) { activeEpisodeUrl }
+            val startUrl = remember(usePage, reload, autoGeneration) { activeEpisodeUrl }
             val serverUrl = servers.getOrNull(index)?.embedUrl
             if(usePage || serverUrl != null) key(usePage, startUrl, if(usePage) null else serverUrl, reload) {
                 EmbeddedPlayer(if(usePage) startUrl else serverUrl!!, if(usePage) startUrl else activeEpisodeUrl,
                     Modifier.fillMaxSize(), originalPage = usePage, tv = true, tvFullScreen = true,
                     fitVideo = fit, controlsActive = controlsActive, onControlsRequested = showMenu,
                     onEpisodeChanged = { activeEpisodeUrl = it }, lookupProgress = { url -> history.find { it.episodeUrl == url } },
-                    onProgress = historyModel::progress)
+                    onProgress = onProgress, onEnded = onEnded, autoPlay = automaticEpisode == activeEpisodeUrl)
             }
         }
         return
@@ -115,12 +141,12 @@ private fun PlayerScreen(episodeUrl: String, title: String, onBack: () -> Unit, 
                 FilterChip(selected = !originalPage, onClick = { originalPage = false }, label = { Text("Elegir servidor") })
             }
             if (originalPage) {
-                val startUrl = remember(originalPage, playerReload) { activeEpisodeUrl }
+                val startUrl = remember(originalPage, playerReload, autoGeneration) { activeEpisodeUrl }
                 key(startUrl, playerReload) {
                     EmbeddedPlayer(startUrl, startUrl, Modifier.fillMaxWidth().weight(1f), originalPage = true,
                         onEpisodeChanged = { activeEpisodeUrl = it },
                         lookupProgress = { url -> history.find { it.episodeUrl == url } },
-                        onProgress = historyModel::progress, tv = tv)
+                        onProgress = onProgress, tv = tv, onEnded = onEnded, autoPlay = automaticEpisode == activeEpisodeUrl)
                 }
                 TextButton(onClick = { playerReload++ }) { Text("Recargar reproductor") }
             } else {
@@ -136,7 +162,8 @@ private fun PlayerScreen(episodeUrl: String, title: String, onBack: () -> Unit, 
                 Text("Pulsa reproducir en el vídeo. Si falla, prueba otro servidor.", style = MaterialTheme.typography.bodySmall)
                 key(server.embedUrl, retry, playerReload) {
                     EmbeddedPlayer(server.embedUrl, activeEpisodeUrl, Modifier.fillMaxWidth().aspectRatio(16f / 9f),
-                        lookupProgress = { url -> history.find { it.episodeUrl == url } }, onProgress = historyModel::progress, tv = tv)
+                        lookupProgress = { url -> history.find { it.episodeUrl == url } }, onProgress = onProgress, tv = tv,
+                        onEnded = onEnded, autoPlay = automaticEpisode == activeEpisodeUrl)
                 }
                 TextButton(onClick = { playerReload++ }) { Text("Recargar reproductor") }
                 Spacer(Modifier.weight(1f))
@@ -162,7 +189,7 @@ private fun EmbeddedPlayer(url: String, episodeUrl: String, modifier: Modifier, 
     onEpisodeChanged: (String) -> Unit = {}, lookupProgress: (String) -> WatchEntry? = { null },
     onProgress: (String, Long, Long) -> Unit = { _, _, _ -> }, tv: Boolean = false,
     tvFullScreen: Boolean = false, fitVideo: Boolean = true, controlsActive: Boolean = true,
-    onControlsRequested: () -> Unit = {}) {
+    onControlsRequested: () -> Unit = {}, onEnded: (String, Long, Long) -> Unit = { _, _, _ -> }, autoPlay: Boolean = false) {
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
     var fullView by remember { mutableStateOf<View?>(null) }
@@ -172,6 +199,7 @@ private fun EmbeddedPlayer(url: String, episodeUrl: String, modifier: Modifier, 
     val episodeChanged by rememberUpdatedState(onEpisodeChanged)
     val lookup by rememberUpdatedState(lookupProgress)
     val saveProgress by rememberUpdatedState(onProgress)
+    val complete by rememberUpdatedState(onEnded)
     val controlsFocus = remember { FocusRequester() }
     val showControls by rememberUpdatedState(onControlsRequested)
     val fit by rememberUpdatedState(fitVideo)
@@ -179,7 +207,8 @@ private fun EmbeddedPlayer(url: String, episodeUrl: String, modifier: Modifier, 
     val webView = remember(url) {
         RemotePlayerWebView(context, tv).apply {
             onExitControls = { if(tvFullScreen) showControls() else controlsFocus.requestFocus() }
-            val progress = WebPlaybackProgress(this, episodeUrl, { lookup(it) }, { page, position, duration -> saveProgress(page, position, duration) })
+            val progress = WebPlaybackProgress(this, episodeUrl, { if(autoPlay) null else lookup(it) }, { page, position, duration -> saveProgress(page, position, duration) },
+                { page, position, duration -> complete(page, position, duration) }, autoPlay)
             progress.install()
             setBackgroundColor(android.graphics.Color.BLACK)
             settings.javaScriptEnabled = true
@@ -187,7 +216,7 @@ private fun EmbeddedPlayer(url: String, episodeUrl: String, modifier: Modifier, 
             settings.allowFileAccess = false
             settings.allowContentAccess = false
             settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-            settings.mediaPlaybackRequiresUserGesture = true
+            settings.mediaPlaybackRequiresUserGesture = !autoPlay
             settings.setSupportMultipleWindows(true)
             CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
             webChromeClient = object : WebChromeClient() {

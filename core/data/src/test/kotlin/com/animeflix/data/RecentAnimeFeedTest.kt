@@ -6,6 +6,16 @@ import org.junit.Test
 import java.io.IOException
 
 class RecentAnimeFeedTest {
+    @Test fun fillsTwelveDistinctRecentSeriesFromPreviousFeedWhenNewPageContainsRepeats() {
+        val current = listOf("new", "new", "previous-4")
+        val previous = (1..20).map { "previous-$it" }
+        val result = recentWindow(current, previous)
+        assertEquals(12, result.size)
+        assertEquals(listOf("new", "previous-4"), result.take(2))
+        assertEquals(result.size, result.distinct().size)
+        assertEquals(previous, recentWindow(previous, current))
+        assertEquals(listOf("new"), recentWindow(listOf("new"), emptyList()))
+    }
     @Test fun readsRealPublicEpisodeCardsCapturedOnNovember13() {
         val html = checkNotNull(javaClass.getResource("/recent-episodes-2026-11-13.html")).readText()
         val items = parseRecentAnime(html)

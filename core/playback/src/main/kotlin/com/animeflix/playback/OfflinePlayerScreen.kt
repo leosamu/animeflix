@@ -22,7 +22,8 @@ import kotlinx.coroutines.withContext
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun OfflinePlayerScreen(id: Long, episodeUrl: String, title: String, watched: Boolean,
-    tv: Boolean, lookupPosition: suspend () -> Long, onProgress: (String, Long, Long) -> Unit, onMark: () -> Unit, onBack: () -> Unit) {
+    tv: Boolean, lookupPosition: suspend () -> Long, onProgress: (String, Long, Long) -> Unit, onMark: () -> Unit, onBack: () -> Unit,
+    onEnded: (String, Long, Long) -> Unit = { _, _, _ -> }, message: String? = null, completing: Boolean = false) {
     val context = LocalContext.current
     val activity = context as? android.app.Activity
     val resumeFocus = remember { FocusRequester() }
@@ -31,7 +32,7 @@ internal fun OfflinePlayerScreen(id: Long, episodeUrl: String, title: String, wa
     var source by remember(id) { mutableStateOf<ResolvedVideo?>(null) }
     var loading by remember(id) { mutableStateOf(true) }
     var resumePosition by remember(id) { mutableLongStateOf(0) }
-    var fullScreen by rememberSaveable(id) { mutableStateOf(tv) }
+    var fullScreen by rememberSaveable { mutableStateOf(tv) }
     LaunchedEffect(fullScreen) { if(tv && !fullScreen) { withFrameNanos { }; resumeFocus.requestFocus() } }
     LaunchedEffect(id) {
         // Reading the local file is faster than the history flow's initial emission.
@@ -56,7 +57,7 @@ internal fun OfflinePlayerScreen(id: Long, episodeUrl: String, title: String, wa
     }
     DisposableEffect(activity) {
         val previous = activity?.requestedOrientation
-        onDispose { activity?.let {
+        onDispose { activity?.takeUnless { it.isChangingConfigurations }?.let {
             it.requestedOrientation = previous ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             WindowCompat.getInsetsController(it.window, it.window.decorView).show(WindowInsetsCompat.Type.systemBars())
         } }
@@ -75,10 +76,12 @@ internal fun OfflinePlayerScreen(id: Long, episodeUrl: String, title: String, wa
         Column(Modifier.fillMaxSize().padding(if(fullScreen) PaddingValues(0.dp) else padding), verticalArrangement = Arrangement.spacedBy(if(fullScreen) 0.dp else 8.dp)) {
             if(!fullScreen) Text("DESCARGADO · SIN CONEXIÓN", color = AnimeFlixColors.primary, modifier = Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.labelMedium)
             if(loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-            source?.let { video ->
+            if(completing) LinearProgressIndicator(Modifier.fillMaxWidth())
+            message?.let { Text(it, modifier = Modifier.padding(12.dp), color = AnimeFlixColors.primary) }
+            source?.let { video -> key(id, episodeUrl) {
                 NativeVideo(video, episodeUrl, resumePosition, Modifier.fillMaxWidth().weight(1f), onProgress,
-                    onRetry = onBack, fullScreen = fullScreen, onFullScreen = { fullScreen = it }, tv = tv, offline = true, offlineCacheId = id.takeIf { it < 0 }, offlineStreamKeys = streamKeys)
-            }
+                    onRetry = onBack, fullScreen = fullScreen, onFullScreen = { fullScreen = it }, tv = tv, offline = true, offlineCacheId = id.takeIf { it < 0 }, offlineStreamKeys = streamKeys, onEnded = onEnded)
+            } }
             if(source == null && !loading) Text("El archivo no está disponible en este perfil. Vuelve a Descargas para descargarlo de nuevo.", modifier = Modifier.padding(16.dp))
             if(!fullScreen) Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = { fullScreen = true }, enabled = source != null, modifier = Modifier.tvRemoteFocus().focusRequester(resumeFocus)) { Text("Ver vídeo") }

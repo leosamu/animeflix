@@ -155,7 +155,7 @@ fun AnimeFlixTvApp(catalog: CatalogViewModel = profileViewModel(), history: Watc
                 }
                 selectedId != null -> Text("El título no está disponible. Pulsa Volver.")
                 section == "history" -> {
-                    val opened = marks.filter { it.openedAt > 0 }
+                    val opened = com.animeflix.data.latestHistoryPerSeries(marks)
                     LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(8.dp)) {
                         item { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text("TU RECORRIDO", style = MaterialTheme.typography.labelMedium, color = AnimeFlixColors.primary)
