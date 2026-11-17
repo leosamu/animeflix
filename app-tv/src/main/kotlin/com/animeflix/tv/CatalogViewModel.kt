@@ -14,7 +14,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 
 data class CatalogState(val items: List<Anime> = emptyList(), val loading: Boolean = true, val error: String? = null,
-    val refreshing: Boolean = false, val canLoadMore: Boolean = false)
+    val refreshing: Boolean = false, val canLoadMore: Boolean = false, val airing: List<com.animeflix.data.AiringAnime> = emptyList(), val airingLoading: Boolean = false, val airingError: String? = null, val watched: Set<String> = emptySet())
 private data class SyncState(val refreshing: Boolean = false, val more: Boolean = false)
 
 class CatalogViewModel(app: Application, private val saved: SavedStateHandle) : AndroidViewModel(app) {
@@ -23,12 +23,13 @@ class CatalogViewModel(app: Application, private val saved: SavedStateHandle) : 
     private val actionError = MutableStateFlow<String?>(null)
     private val syncState = MutableStateFlow(SyncState())
     private val remote = AnimeAv1Catalog()
-    private val recent = com.animeflix.data.RecentAnimeFeed.create(app)
-    private var recentRequest: Job? = null
+    private val schedule = com.animeflix.data.AiringSchedule.create(app)
+    private var scheduleRequest: Job? = null
     private var request: Job? = null
     private var page = 0
+    init { if(saved.get<Int>("navigationRevision") != 1) { saved["section"] = "airing"; saved["query"] = ""; saved["selected"] = null; saved["navigationRevision"] = 1 } }
     val query = saved.getStateFlow("query", "")
-    val section = saved.getStateFlow("section", "catalog")
+    val section = saved.getStateFlow("section", "airing")
     val selectedId = saved.getStateFlow<String?>("selected", null)
     val hideCaughtUp = repository.observeHideCaughtUp().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
     fun setHideCaughtUp(value: Boolean) {
@@ -53,36 +54,38 @@ class CatalogViewModel(app: Application, private val saved: SavedStateHandle) : 
             if (error is CancellationException) throw error
             emit(CatalogState(loading = false, error = "No se pudo cargar el catálogo local."))
         }
-    }.combine(recent.state) { catalog, feed ->
-        catalog.copy(items = recent.order(catalog.items, feed.ids), error = catalog.error ?: feed.error)
+    }.combine(schedule.state) { catalog, feed ->
+        val combined = catalog.items + feed.items.map { it.anime }.filter { anime -> catalog.items.none { it.id == anime.id } }
+        catalog.copy(items = combined, airing = feed.items, airingLoading = !false && feed.loading, airingError = feed.error)
+    }.combine(repository.observeWatchHistory()) { catalog, history ->
+        catalog.copy(watched = history.filter { it.watched }.map { it.episodeUrl }.toSet())
     }.combine(section) { catalog, section ->
-        if (section == "catalog") catalog else catalog.copy(items = catalog.items.sortedBy { it.title.lowercase() })
+        catalog.copy(items = catalog.items.sortedBy { it.title.lowercase() }, error = if(section == "airing") catalog.airingError else catalog.error)
     }.combine(actionError) { catalog, error -> catalog.copy(error = error ?: catalog.error) }
-        .combine(syncState) { catalog, sync -> catalog.copy(refreshing = sync.refreshing, canLoadMore = sync.more) }
+        .combine(syncState) { catalog, sync -> catalog.copy(refreshing = if(section.value == "airing") catalog.airingLoading else sync.refreshing, canLoadMore = sync.more) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CatalogState())
 
-    init { if (!false) load(reset = true) }
+    init { if (!false) { refreshSchedule(); if(section.value == "catalog") load(reset = true) } }
 
     fun search(value: String) {
         saved["query"] = value
-        if (!false) load(reset = true, debounce = true)
+        if (!false && section.value == "catalog") load(reset = true, debounce = true)
     }
-    fun navigate(value: String) { saved["section"] = value; saved["selected"] = null; if (value == "catalog") refreshRecent() }
+    fun navigate(value: String) { saved["section"] = value; saved["selected"] = null; if(value == "airing") refreshSchedule(); if(value == "catalog" && page == 0 && !false) load(reset = true) }
     fun open(id: String?) { saved["selected"] = id }
     fun retry() {
         actionError.value = null
         refresh.value++
-        refreshRecent(force = true)
+        if(section.value == "airing") { refreshSchedule(force = true); return }
         if (!false) load(reset = true)
     }
-    fun refreshRecent(force: Boolean = false) {
-        if (false || recentRequest?.isActive == true) return
-        recentRequest = viewModelScope.launch { recent.refresh(force) }
+    fun refreshSchedule(force: Boolean = false) {
+        if (false || scheduleRequest?.isActive == true) return
+        scheduleRequest = viewModelScope.launch { schedule.refresh(force) }
     }
     fun loadMore() { if (!syncState.value.refreshing && syncState.value.more) load(reset = false) }
 
     private fun load(reset: Boolean, debounce: Boolean = false) {
-        if (reset && query.value.isBlank()) refreshRecent()
         request?.cancel()
         request = viewModelScope.launch {
             syncState.value = SyncState(refreshing = true)

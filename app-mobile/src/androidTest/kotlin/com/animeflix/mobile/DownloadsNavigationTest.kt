@@ -15,7 +15,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class DownloadsNavigationTest {
     @get:Rule val rule = createEmptyComposeRule()
-    @Test fun downloadsShowsOnlyLocalLibraryAndCanReturnToExplore(): Unit = runBlocking {
+    @Test fun downloadsShowsOnlyLocalLibraryAndCanReturnToCatalog(): Unit = runBlocking {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         check(context.packageName.endsWith(".qa"))
@@ -29,9 +29,9 @@ class DownloadsNavigationTest {
             rule.onNodeWithText("Buscar anime").assertDoesNotExist()
             rule.onNodeWithText("Catálogo de demostración", substring = true).assertDoesNotExist()
             rule.onNodeWithText("Todavía no tienes animes con capítulos descargados en este perfil.").assertExists()
-            rule.onNodeWithText("Explorar").performClick()
+            rule.onNode(hasText("Catálogo") and hasClickAction()).performClick()
             rule.waitUntil(15_000) { rule.onAllNodesWithText("Buscar anime").fetchSemanticsNodes().isNotEmpty() }
-            rule.onNodeWithText("Explorar").assertIsSelected()
+            rule.onNode(hasText("Catálogo") and hasClickAction()).assertIsSelected()
         }
     }
 }

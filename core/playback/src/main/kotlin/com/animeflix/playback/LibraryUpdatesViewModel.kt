@@ -33,6 +33,13 @@ class LibraryUpdatesViewModel(app: Application) : AndroidViewModel(app) {
             catch(failure: Exception) { if(failure is CancellationException) throw failure; mutableError.value = "No se pudo comprobar Mi lista." }
         }
     }
+    fun refreshScheduled(items: List<com.animeflix.data.AiringAnime>, watched: Set<String>) {
+        items.forEach { item ->
+            val previous = inventories.value.find { it.mediaUrl == item.anime.sourceUrl }
+            val newer = previous != null && previous.episodes.none { it.pageUrl == item.latestUrl }
+            if(item.latestUrl in watched || newer) check(item.anime.sourceUrl, force = newer)
+        }
+    }
     fun check(url: String, force: Boolean = false) {
         val base = url.trimEnd('/')
         if(!AnimeAv1Episodes.isMediaUrl(base) || base in requests) return

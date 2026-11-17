@@ -3,6 +3,8 @@ package com.animeflix.tv
 import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -39,6 +41,22 @@ import com.animeflix.model.*
 import com.animeflix.playback.*
 
 @Composable
+private fun TvAnimeCard(anime: Anime, info: EpisodeAvailability?, scheduleLabel: String? = null, newLabel: String? = null, onOpen: () -> Unit) {
+    Surface(onClick = onOpen, modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+            AsyncImage(anime.posterUrl, null, Modifier.width(76.dp).height(108.dp), contentScale = ContentScale.Crop)
+            Column(Modifier.weight(1f)) {
+                Text(anime.title + if(anime.favorite) " ★" else "", style = MaterialTheme.typography.titleLarge)
+                if(anime.favorite) Text(info?.badge ?: "Pendientes por comprobar", color = MaterialTheme.colorScheme.primary)
+                newLabel?.let { Text(it, color = AnimeFlixColors.primary) }
+                if(scheduleLabel != null) Text(scheduleLabel) else info?.let { Text(it.latestLabel) }
+                Text(anime.synopsis, maxLines = 3, overflow = TextOverflow.Ellipsis)
+            }
+        }
+    }
+}
+
+@Composable
 fun AnimeFlixTvApp(catalog: CatalogViewModel = profileViewModel(), history: WatchHistoryViewModel = profileViewModel(), episodes: EpisodesViewModel = profileViewModel(), updates: LibraryUpdatesViewModel = profileViewModel()) {
     val state by catalog.state.collectAsStateWithLifecycle()
     val section by catalog.section.collectAsStateWithLifecycle()
@@ -53,6 +71,7 @@ fun AnimeFlixTvApp(catalog: CatalogViewModel = profileViewModel(), history: Watc
     val inventories by updates.inventories.collectAsStateWithLifecycle()
     val checking by updates.refreshing.collectAsStateWithLifecycle()
     val updateError by updates.error.collectAsStateWithLifecycle()
+    val today = rememberScheduleToday()
     LibraryRefreshOnResume(updates, selected?.sourceUrl, section == "favorites")
     val context = LocalContext.current
     val firstFocus = remember { FocusRequester() }
@@ -68,24 +87,28 @@ fun AnimeFlixTvApp(catalog: CatalogViewModel = profileViewModel(), history: Watc
     LaunchedEffect(selected?.sourceUrl, inventory) { selected?.let {
         if(inventory != null) episodes.useInventory(inventory) else episodes.load(it.sourceUrl)
     } }
-    com.animeflix.playback.CatalogRefreshOnResume(section == "catalog" && selectedId == null) { catalog.refreshRecent() }
+    com.animeflix.playback.CatalogRefreshOnResume(section == "airing" && selectedId == null) { catalog.refreshSchedule() }
+    LaunchedEffect(section, state.airing, state.watched, inventories) { if(section == "airing") updates.refreshScheduled(state.airing, state.watched) }
     LaunchedEffect(selectedId, section) { firstFocus.requestFocus() }
-    BackHandler(enabled = selectedId != null || section != "catalog") {
-        if (selectedId != null) catalog.open(null) else catalog.navigate("catalog")
+    BackHandler(enabled = selectedId != null || section != "airing") {
+        if (selectedId != null) catalog.open(null) else catalog.navigate("airing")
     }
     androidx.compose.material3.MaterialTheme(colorScheme = AnimeFlixColors) {
     MaterialTheme(colorScheme = androidx.tv.material3.darkColorScheme(primary = AnimeFlixColors.primary, background = AnimeFlixColors.background, surface = AnimeFlixColors.surface)) {
     Surface(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (selectedId != null) Button(onClick = { catalog.open(null) }, modifier = Modifier.focusRequester(firstFocus)) { Text("Volver") }
                 else {
-                    Button(onClick = { catalog.navigate("catalog") }, modifier = Modifier.focusRequester(firstFocus)) { Text("Explorar") }
-                    Button(onClick = { catalog.navigate("favorites") }) { Text("Mi lista") }
-                    Button(onClick = { catalog.navigate("history") }) { Text("Historial") }
+                    Button(onClick = { catalog.navigate("airing") }, modifier = if(section == "airing") Modifier.focusRequester(firstFocus) else Modifier) { Text("En emisión") }
+                    Button(onClick = { catalog.navigate("catalog") }, modifier = if(section == "catalog") Modifier.focusRequester(firstFocus) else Modifier) { Text("Catálogo") }
+                    Button(onClick = { catalog.navigate("favorites") }, modifier = if(section == "favorites") Modifier.focusRequester(firstFocus) else Modifier) { Text("Mi lista") }
+                    Button(onClick = { catalog.navigate("history") }, modifier = if(section == "history") Modifier.focusRequester(firstFocus) else Modifier) { Text("Historial") }
                     Button(onClick = { openDownloads(context) }) { Text("Descargas") }
                     Button(onClick = { draft = query; searchOpen = true }) { Text("Buscar") }
                 }
+            }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("AnimeFlix TV", style = MaterialTheme.typography.titleLarge)
                 Spacer(Modifier.weight(1f))
                 if(selectedId == null && section != "history") Button(onClick = { catalog.setHideCaughtUp(!hideCaughtUp) },
@@ -103,6 +126,33 @@ fun AnimeFlixTvApp(catalog: CatalogViewModel = profileViewModel(), history: Watc
                 }
             }
             when {
+                section == "airing" && selectedId == null -> {
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("En emisión · Hoy primero", style = MaterialTheme.typography.headlineMedium)
+                        Button(onClick = catalog::retry, enabled = !state.airingLoading) { Text("Actualizar horario") }
+                    }
+                    if(state.airingLoading || checking) androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth())
+                    updateError?.let { Text(it) }
+                    val matching = com.animeflix.data.orderAiring(state.airing, today).filter { it.anime.title.contains(query.trim(), true) }
+                    val visible = matching.filter { !hideCaughtUp || !it.caughtUp(availability[it.anime.sourceUrl], state.watched) }
+                    LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(8.dp)) {
+                        if(visible.isEmpty() && !state.airingLoading) item { Text(if(matching.isNotEmpty()) "Todo al día. Las series reaparecerán al publicarse un capítulo pendiente." else "No hay emisiones para mostrar. Actualiza el horario o prueba otra búsqueda.") }
+                        com.animeflix.data.scheduleDays(today).forEach { day ->
+                            val rows = visible.filter { com.animeflix.data.scheduleDay(it.postedAt) == day }
+                            if(rows.isNotEmpty()) {
+                                item(key = "day-$day") { Text(com.animeflix.data.airingDayLabel(day, today), style = MaterialTheme.typography.titleLarge, color = AnimeFlixColors.primary) }
+                                items(rows, key = { it.anime.id }) { row ->
+                                    val anime = state.items.find { it.id == row.anime.id } ?: row.anime
+                                    val status = availability[anime.sourceUrl]
+                                    val newer = status != null && row.latestUrl !in state.watched && inventories.find { it.mediaUrl == anime.sourceUrl }?.episodes?.none { it.pageUrl == row.latestUrl } == true
+                                    TvAnimeCard(anime, if(newer) null else status,
+                                        "Último: episodio ${row.latestNumber} · " + java.text.SimpleDateFormat("dd/MM HH:mm", java.util.Locale.getDefault()).format(java.util.Date(row.postedAt)),
+                                        if(newer) "Nuevo episodio ${row.latestNumber}" else null) { catalog.open(anime.id) }
+                                }
+                            }
+                        }
+                    }
+                }
                 state.loading -> Text("Cargando catálogo…")
                 selected != null -> {
                     val current = selected
@@ -114,16 +164,17 @@ fun AnimeFlixTvApp(catalog: CatalogViewModel = profileViewModel(), history: Watc
                                 AsyncImage(current.posterUrl, null, Modifier.width(120.dp).height(170.dp), contentScale = ContentScale.Crop)
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                     Text(current.title, style = MaterialTheme.typography.headlineMedium)
-                                    availability[current.sourceUrl.trimEnd('/')]?.let { Text(it.badge); Text(it.latestLabel) }
+                                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                        Text(availability[current.sourceUrl.trimEnd('/')]?.badge ?: "Pendientes por comprobar", modifier = Modifier.weight(1f))
+                                        Button(onClick = { catalog.toggleFavorite(current) }) { Text(if(current.favorite) "Quitar de mi lista" else "Añadir a mi lista") }
+                                    }
+                                    last?.let { entry -> Button(onClick = { play(entry.episodeUrl) }) { Text("Continuar episodio ${entry.number}") } }
+                                    availability[current.sourceUrl.trimEnd('/')]?.let { Text(it.latestLabel) }
                                     Button(onClick = { updates.check(current.sourceUrl, force = true) }, enabled = !checking) { Text("Actualizar episodios y fecha") }
                                     Text(current.synopsis)
-                                    Button(onClick = { catalog.toggleFavorite(current) }) { Text(if (current.favorite) "Quitar de mi lista" else "Añadir a mi lista") }
                                 }
                             }
                         }
-                        last?.let { entry -> item {
-                            Button(onClick = { play(entry.episodeUrl) }) { Text("Retomar episodio ${entry.number}" + if(entry.positionMs > 0) " · ${playbackTime(entry.positionMs)}" else "") }
-                        } }
                         when {
                             episodeState.mediaUrl != current.sourceUrl.trimEnd('/') || episodeState.loading -> item { Text("Cargando episodios…") }
                             episodeState.error -> item { Button(onClick = { episodes.load(current.sourceUrl, true) }) { Text("Reintentar episodios") } }
@@ -192,7 +243,7 @@ fun AnimeFlixTvApp(catalog: CatalogViewModel = profileViewModel(), history: Watc
                     val matching = state.items.filter { (section != "favorites" || it.favorite) &&
                         (it.title.contains(query.trim(), true) || it.synopsis.contains(query.trim(), true)) }
                     val visible = matching.filter { !hideCaughtUp || availability[it.sourceUrl.trimEnd('/')]?.caughtUp != true }
-                    Text(if(section == "favorites") "Mi lista" else "Explorar · Últimas actualizaciones", style = MaterialTheme.typography.headlineMedium)
+                    Text(if(section == "favorites") "Mi lista" else "Catálogo · Orden alfabético", style = MaterialTheme.typography.headlineMedium)
                     if(section == "favorites") {
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             Button(onClick = { updates.refreshFavorites(force = true) }, enabled = !checking) { Text(if(checking) "Comprobando episodios…" else "Actualizar episodios") }
@@ -209,18 +260,7 @@ fun AnimeFlixTvApp(catalog: CatalogViewModel = profileViewModel(), history: Watc
                         if(visible.isEmpty()) item { Text(if(matching.isNotEmpty() && hideCaughtUp) "Series al día ocultas. Desactiva Ocultar al día para volver a verlas."
                             else "No hay títulos para mostrar. Prueba otra búsqueda o añade favoritos.") }
                         items(visible, key = { it.id }) { anime ->
-                            Surface(onClick = { catalog.open(anime.id) }, modifier = Modifier.fillMaxWidth()) {
-                                Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                                    AsyncImage(anime.posterUrl, null, Modifier.width(76.dp).height(108.dp), contentScale = ContentScale.Crop)
-                                    Column(Modifier.weight(1f)) {
-                                        Text(anime.title + if(anime.favorite) " ★" else "", style = MaterialTheme.typography.titleLarge)
-                                        val info = availability[anime.sourceUrl.trimEnd('/')]
-                                        if(anime.favorite) Text(info?.badge ?: "Pendientes por comprobar", color = MaterialTheme.colorScheme.primary)
-                                        info?.let { Text(it.latestLabel) }
-                                        Text(anime.synopsis, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                                    }
-                                }
-                            }
+                            TvAnimeCard(anime, availability[anime.sourceUrl.trimEnd('/')]) { catalog.open(anime.id) }
                         }
                         if(state.canLoadMore && section == "catalog") item { Button(onClick = catalog::loadMore, enabled = !state.refreshing) { Text("Cargar más títulos") } }
                     }

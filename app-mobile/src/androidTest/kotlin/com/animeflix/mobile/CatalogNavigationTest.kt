@@ -12,6 +12,10 @@ class CatalogNavigationTest {
     @get:Rule val rule = createAndroidComposeRule<MainActivity>()
 
     private fun awaitCatalog() {
+        rule.waitUntil(15_000) { rule.onAllNodes(hasText("Catálogo") and hasClickAction()).fetchSemanticsNodes().isNotEmpty() }
+        rule.onNode(hasText("Catálogo") and hasClickAction()).performClick()
+        rule.onNodeWithText("Buscar anime").performTextClearance()
+        rule.onNodeWithText("Buscar anime").performTextInput("Viaje estelar")
         rule.waitUntil(15_000) { rule.onAllNodesWithText("Viaje estelar").fetchSemanticsNodes().isNotEmpty() }
     }
 
@@ -22,17 +26,18 @@ class CatalogNavigationTest {
         rule.activityRule.scenario.recreate()
         rule.waitUntil(15_000) { rule.onAllNodesWithText("Sin resultados").fetchSemanticsNodes().isNotEmpty() }
         rule.onNodeWithText("Borrar").performClick()
-        rule.onNodeWithText("Viaje estelar").assertIsDisplayed()
+        rule.onNodeWithText("Buscar anime").performTextInput("Viaje estelar")
+        rule.onNode(hasText("Viaje estelar") and !hasSetTextAction()).assertIsDisplayed()
     }
 
     @Test fun detailSurvivesRecreationAndReturnsToCatalog() {
         awaitCatalog()
-        rule.onNodeWithText("Viaje estelar").performClick()
+        rule.onNode(hasText("Viaje estelar") and !hasSetTextAction()).performClick()
         rule.onNodeWithText("Sinopsis").assertExists()
         rule.activityRule.scenario.recreate()
         rule.waitUntil(15_000) { rule.onAllNodesWithText("Sinopsis").fetchSemanticsNodes().isNotEmpty() }
         rule.onNodeWithText("Volver").performClick()
-        rule.onNodeWithText("Tu próxima aventura").assertIsDisplayed()
+        rule.onNode(hasText("Catálogo") and hasClickAction()).assertIsSelected()
         rule.onNodeWithText("Mi lista").performClick()
         rule.onNodeWithText("Tus favoritos, siempre a mano.").assertIsDisplayed()
     }

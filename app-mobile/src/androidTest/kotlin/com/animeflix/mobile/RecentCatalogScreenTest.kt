@@ -19,7 +19,7 @@ import org.junit.runner.RunWith
 class RecentCatalogScreenTest {
     @get:Rule val rule = createEmptyComposeRule()
 
-    @Test fun cachedPublicationOrderSurvivesRecreationWhileFavoritesRemainAlphabetical(): Unit = runBlocking {
+    @Test fun oldRecentRankIsIgnoredAndCatalogRemainsAlphabeticalAfterRecreation(): Unit = runBlocking {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         check(context.packageName.endsWith(".qa"))
@@ -37,12 +37,14 @@ class RecentCatalogScreenTest {
         instrumentation.uiAutomation.executeShellCommand("input keyevent KEYCODE_WAKEUP").close()
         try {
             ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+                rule.waitUntil(15_000) { rule.onAllNodes(hasText("Catálogo") and hasClickAction()).fetchSemanticsNodes().isNotEmpty() }
+                rule.onNode(hasText("Catálogo") and hasClickAction()).performClick()
                 rule.waitUntil(15_000) { rule.onAllNodesWithText("Buscar anime").fetchSemanticsNodes().isNotEmpty() }
                 rule.onNodeWithText("Buscar anime").performTextInput("QA Orden")
-                assertBefore(zeta.title, alpha.title)
+                assertBefore(alpha.title, zeta.title)
                 scenario.recreate()
                 rule.waitUntil(15_000) { rule.onAllNodesWithText(zeta.title).fetchSemanticsNodes().isNotEmpty() }
-                assertBefore(zeta.title, alpha.title)
+                assertBefore(alpha.title, zeta.title)
                 rule.onNodeWithText("Mi lista").performClick()
                 assertBefore(alpha.title, zeta.title)
             }

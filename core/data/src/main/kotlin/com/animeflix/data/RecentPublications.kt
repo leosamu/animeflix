@@ -24,7 +24,7 @@ internal fun publicObjects(html: String, marker: String): List<String> {
     return objects
 }
 
-private fun field(block: String, name: String): String? = Regex("(?:^|[,{])${Regex.escape(name)}:(\"(?:[^\"\\\\]|\\\\.)*\")")
+internal fun publicDataString(block: String, name: String): String? = Regex("(?:^|[,{])${Regex.escape(name)}:(\"(?:[^\"\\\\]|\\\\.)*\")")
     .find(block)?.groupValues?.get(1)?.let { runCatching { JSONObject("{\"v\":$it}").getString("v") }.getOrNull() }
 
 internal fun publicationTime(raw: String): Long? {
@@ -40,21 +40,21 @@ internal fun episodeReleaseTime(html: String, expectedNumber: String): Long? {
     val block = html.substringAfter("episode:{", "").substringBefore("},embeds:")
     val number = Regex("(?:^|,)number:([0-9]+(?:\\.[0-9]+)?)(?=[,}])").find(block)?.groupValues?.get(1) ?: return null
     if (number.toBigDecimal().compareTo(expectedNumber.toBigDecimal()) != 0) return null
-    field(block, "publishedAt")?.let { return publicationTime(it) }
+    publicDataString(block, "publishedAt")?.let { return publicationTime(it) }
     // Older/public episode records expose upload time and explicitly leave publication time null.
     if (!Regex("(?:^|,)publishedAt:null(?:,|$)").containsMatchIn(block)) return null
-    return field(block, "createdAt")?.let(::publicationTime)
+    return publicDataString(block, "createdAt")?.let(::publicationTime)
 }
 
 internal fun parsePublications(html: String, schedule: Boolean = false): List<RecentPublication> =
     publicObjects(html, if (schedule) "data:{media:[" else "latestEpisodes:[").mapNotNull { block ->
-        val slug = field(block, "slug")?.takeIf { Regex("[a-zA-Z0-9_-]+").matches(it) } ?: return@mapNotNull null
-        val title = field(block, "title") ?: return@mapNotNull null
+        val slug = publicDataString(block, "slug")?.takeIf { Regex("[a-zA-Z0-9_-]+").matches(it) } ?: return@mapNotNull null
+        val title = publicDataString(block, "title") ?: return@mapNotNull null
         val id = Regex(if (schedule) "^\\{id:([0-9]+)" else "media:\\{id:([0-9]+)").find(block)?.groupValues?.get(1) ?: return@mapNotNull null
         val episode = if (schedule) Regex("latestEpisode:\\{([^}]+)\\}").find(block)?.groupValues?.get(1) ?: return@mapNotNull null else block
         val number = Regex("(?:^|[,{}])number:([0-9]+(?:\\.[0-9]+)?)(?=[,}])").find(episode)?.groupValues?.get(1) ?: return@mapNotNull null
-        val date = field(episode, if (schedule) "createdAt" else "publishedAt")?.let(::publicationTime) ?: return@mapNotNull null
-        RecentPublication(Anime("av1:$slug", title, field(block, "synopsis") ?: "Sin sinopsis disponible.",
+        val date = publicDataString(episode, if (schedule) "createdAt" else "publishedAt")?.let(::publicationTime) ?: return@mapNotNull null
+        RecentPublication(Anime("av1:$slug", title, publicDataString(block, "synopsis") ?: "Sin sinopsis disponible.",
             posterUrl = "https://cdn.animeav1.com/covers/$id.jpg", sourceUrl = "https://animeav1.com/media/$slug"), number, date)
     }
 

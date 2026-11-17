@@ -47,15 +47,19 @@ fun AnimeFlixApp(model: CatalogViewModel = profileViewModel(), updates: LibraryU
     val inventories by updates.inventories.collectAsStateWithLifecycle()
     val checking by updates.refreshing.collectAsStateWithLifecycle()
     val updateError by updates.error.collectAsStateWithLifecycle()
+    val today = com.animeflix.playback.rememberScheduleToday()
     LibraryRefreshOnResume(updates, selected?.sourceUrl, section == "favorites", !BuildConfig.DEMO_CATALOG)
-    com.animeflix.playback.CatalogRefreshOnResume(section == "catalog" && selectedId == null) { model.refreshRecent() }
+    com.animeflix.playback.CatalogRefreshOnResume(section == "airing" && selectedId == null) { model.refreshSchedule() }
+    LaunchedEffect(section, state.airing, state.watched, inventories) {
+        if(section == "airing" && !BuildConfig.DEMO_CATALOG) updates.refreshScheduled(state.airing, state.watched)
+    }
     BackHandler(enabled = selectedId != null) { model.open(null) }
-    BackHandler(enabled = selectedId == null && section != "catalog") { model.navigate("catalog") }
+    BackHandler(enabled = selectedId == null && section != "airing") { model.navigate("airing") }
     MaterialTheme(colorScheme = colors) {
         Scaffold(topBar = {
             TopAppBar(title = { Text("ANIMEFLIX", maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary) },
                 navigationIcon = { if (selectedId != null) TextButton(onClick = { model.open(null) }) { Text("Volver") } },
-                actions = { if(selectedId == null && section in setOf("catalog", "favorites")) {
+                actions = { if(selectedId == null && section in setOf("airing", "catalog", "favorites")) {
                     Row(Modifier.padding(end = 8.dp).toggleable(hideCaughtUp, role = Role.Switch, onValueChange = model::setHideCaughtUp)
                         .semantics { contentDescription = "Ocultar series al día" }, verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -65,7 +69,8 @@ fun AnimeFlixApp(model: CatalogViewModel = profileViewModel(), updates: LibraryU
                 } })
         }, bottomBar = {
             if (selectedId == null) NavigationBar {
-                NavigationBarItem(selected = section == "catalog", onClick = { model.navigate("catalog") }, icon = { Text("▦") }, label = { Text("Explorar") })
+                NavigationBarItem(selected = section == "airing", onClick = { model.navigate("airing") }, icon = { Text("◉") }, label = { Text("En emisión") })
+                NavigationBarItem(selected = section == "catalog", onClick = { model.navigate("catalog") }, icon = { Text("▦") }, label = { Text("Catálogo") })
                 NavigationBarItem(selected = section == "favorites", onClick = { model.navigate("favorites") }, icon = { Text("★") }, label = { Text("Mi lista") })
                 NavigationBarItem(selected = section == "history", onClick = { model.navigate("history") }, icon = { Text("◷") }, label = { Text("Historial") })
                 NavigationBarItem(selected = section == "downloads", onClick = { model.navigate("downloads") }, icon = { Text("↓") }, label = { Text("Descargas") })
@@ -83,6 +88,40 @@ fun AnimeFlixApp(model: CatalogViewModel = profileViewModel(), updates: LibraryU
                 when {
                     section == "downloads" -> com.animeflix.playback.DownloadLibrary(
                         animeTitles = state.items.associate { it.sourceUrl.trimEnd('/') to it.title })
+                    section == "airing" && selectedId == null -> {
+                        Column(Modifier.padding(horizontal = 20.dp)) {
+                            Text("En emisión", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
+                            Text("Horario semanal · Hoy primero", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            OutlinedTextField(query, model::search, Modifier.fillMaxWidth().padding(top = 10.dp), singleLine = true, label = { Text("Buscar en emisión") })
+                            TextButton(onClick = model::retry, enabled = !state.airingLoading) { Text("Actualizar horario") }
+                            if(state.airingLoading || checking) LinearProgressIndicator(Modifier.fillMaxWidth())
+                            updateError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                        }
+                        val matching = com.animeflix.data.orderAiring(state.airing, today).filter { it.anime.title.contains(query.trim(), true) }
+                        val visible = matching.filter { !hideCaughtUp || !it.caughtUp(availability[it.anime.sourceUrl], state.watched) }
+                        if(visible.isEmpty() && !state.airingLoading) EmptyMessage(if(matching.isNotEmpty()) "Todo al día" else "Sin emisiones para mostrar",
+                            if(matching.isNotEmpty()) "Las series reaparecerán cuando se publique un capítulo pendiente." else "Actualiza el horario o prueba otra búsqueda.")
+                        LazyVerticalGrid(GridCells.Adaptive(155.dp), modifier = Modifier.weight(1f), contentPadding = PaddingValues(20.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            com.animeflix.data.scheduleDays(today).forEach { day ->
+                                val rows = visible.filter { com.animeflix.data.scheduleDay(it.postedAt) == day }
+                                if(rows.isNotEmpty()) {
+                                    item(key = "day-$day", span = { GridItemSpan(maxLineSpan) }) {
+                                        Text(com.animeflix.data.airingDayLabel(day, today), style = MaterialTheme.typography.titleLarge,
+                                            color = MaterialTheme.colorScheme.primary, modifier = Modifier.semantics { heading() })
+                                    }
+                                    items(rows, key = { it.anime.id }) { row ->
+                                        val anime = state.items.find { it.id == row.anime.id } ?: row.anime
+                                        val status = availability[anime.sourceUrl]
+                                        val newEpisode = status != null && row.latestUrl !in state.watched && inventories.find { it.mediaUrl == anime.sourceUrl }?.episodes?.none { it.pageUrl == row.latestUrl } == true
+                                        AnimeCard(anime, if(newEpisode) null else status, { model.open(anime.id) },
+                                            "Último: episodio ${row.latestNumber} · " + java.text.SimpleDateFormat("dd/MM HH:mm", java.util.Locale.getDefault()).format(java.util.Date(row.postedAt)),
+                                            if(newEpisode) "Nuevo episodio ${row.latestNumber}" else null)
+                                    }
+                                }
+                            }
+                        }
+                    }
                     state.loading || (state.items.isEmpty() && state.refreshing) -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                     selected != null -> AnimeDetails(selected, availability[selected.sourceUrl.trimEnd('/')],
                         inventories.find { it.mediaUrl == selected.sourceUrl.trimEnd('/') },
@@ -91,9 +130,9 @@ fun AnimeFlixApp(model: CatalogViewModel = profileViewModel(), updates: LibraryU
                     section == "history" -> WatchHistoryPanel(state.items)
                     else -> {
                         Column(Modifier.padding(horizontal = 20.dp)) {
-                            Text(if (section == "favorites") "Mi lista" else "Tu próxima aventura", style = MaterialTheme.typography.headlineMedium,
+                            Text(if (section == "favorites") "Mi lista" else "Catálogo", style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
-                            Text(if (section == "favorites") "Tus favoritos, siempre a mano." else "Primero, animes con capítulos recién publicados.",
+                            Text(if (section == "favorites") "Tus favoritos, siempre a mano." else "Todos tus títulos, por orden alfabético.",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp, bottom = 16.dp))
                             OutlinedTextField(value = query, onValueChange = model::search, modifier = Modifier.fillMaxWidth(), singleLine = true,
                                 label = { Text("Buscar anime") }, trailingIcon = { if (query.isNotEmpty()) TextButton(onClick = { model.search("") }) { Text("Borrar") } })
@@ -131,14 +170,16 @@ fun AnimeFlixApp(model: CatalogViewModel = profileViewModel(), updates: LibraryU
 }
 
 @Composable
-private fun AnimeCard(anime: Anime, availability: EpisodeAvailability?, onClick: () -> Unit) {
+private fun AnimeCard(anime: Anime, availability: EpisodeAvailability?, onClick: () -> Unit, scheduleLabel: String? = null, newLabel: String? = null) {
     Card(onClick = onClick, shape = RoundedCornerShape(18.dp)) {
         Poster(anime, Modifier.fillMaxWidth().height(190.dp))
         Column(Modifier.padding(12.dp)) {
             Text(anime.title, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
             if(anime.favorite) Text(availability?.badge ?: "Pendientes por comprobar", color = if((availability?.pending ?: 0) > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-            availability?.let { Text(it.latestLabel, style = MaterialTheme.typography.bodySmall) }
+            newLabel?.let { Text(it, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge) }
+            if(scheduleLabel != null) Text(scheduleLabel, style = MaterialTheme.typography.bodySmall)
+            else availability?.let { Text(it.latestLabel, style = MaterialTheme.typography.bodySmall) }
             Text(if (anime.favorite) "★ En mi lista" else "Ver ficha", style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp))
         }
@@ -158,15 +199,26 @@ private fun Poster(anime: Anime, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun AnimeDetails(anime: Anime, availability: EpisodeAvailability?, inventory: EpisodeInventory?, onRefresh: () -> Unit, onFavorite: () -> Unit) {
+private fun AnimeDetails(anime: Anime, availability: EpisodeAvailability?, inventory: EpisodeInventory?, onRefresh: () -> Unit, onFavorite: () -> Unit,
+    historyModel: com.animeflix.playback.WatchHistoryViewModel = profileViewModel()) {
     val uriHandler = LocalUriHandler.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val history by historyModel.entries.collectAsStateWithLifecycle()
+    val last = history.filter { it.mediaUrl == anime.sourceUrl.trimEnd('/') && it.openedAt > 0 }.maxByOrNull { it.openedAt }
     var linkError by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         Card(shape = RoundedCornerShape(24.dp)) { Poster(anime, Modifier.fillMaxWidth().height(240.dp)) }
         Text(anime.title, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
-        availability?.let { Text(it.badge, color = MaterialTheme.colorScheme.primary); Text(it.latestLabel) }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(availability?.badge ?: "Pendientes por comprobar", modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.primary)
+            TextButton(onClick = onFavorite) { Text(if(anime.favorite) "Quitar de mi lista" else "Añadir a mi lista") }
+        }
+        last?.let { entry ->
+            Button(onClick = { openEpisode(context, entry.episodeUrl, "Episodio ${entry.number}") }, modifier = Modifier.fillMaxWidth()) { Text("Continuar episodio ${entry.number}") }
+            if(entry.positionMs > 0) Text("Minuto guardado: ${com.animeflix.model.playbackTime(entry.positionMs)}", style = MaterialTheme.typography.bodySmall)
+        }
+        availability?.let { Text(it.latestLabel) }
         if(anime.sourceUrl.isNotBlank() && !BuildConfig.DEMO_CATALOG) TextButton(onClick = onRefresh) { Text("Actualizar episodios y fecha") }
-        Button(onClick = onFavorite, modifier = Modifier.fillMaxWidth()) { Text(if (anime.favorite) "Quitar de mi lista" else "Añadir a mi lista") }
         Text("Sinopsis", style = MaterialTheme.typography.titleLarge)
         Text(anime.synopsis, style = MaterialTheme.typography.bodyLarge)
         if (anime.sourceUrl.isNotBlank()) {

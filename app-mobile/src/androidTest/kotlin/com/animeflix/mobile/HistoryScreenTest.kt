@@ -24,8 +24,9 @@ class HistoryScreenTest {
                 sourceUrl = "https://animeav1.com/media/qa-history")))
             repository.recordOpened("https://animeav1.com/media/qa-history/3")
         }
-        rule.waitUntil(10_000) { rule.onAllNodesWithText("Prueba historial").fetchSemanticsNodes().isNotEmpty() }
+        rule.waitUntil(10_000) { rule.onAllNodesWithText("Historial").fetchSemanticsNodes().isNotEmpty() }
         rule.onNodeWithText("Historial").performClick()
+        rule.waitUntil(10_000) { rule.onAllNodesWithText("Prueba historial").fetchSemanticsNodes().isNotEmpty() }
         rule.onNodeWithText("Prueba historial").assertIsDisplayed()
         rule.onNodeWithText("Episodio 3").assertIsDisplayed()
         rule.onNodeWithText("Marcar como visto").performClick()

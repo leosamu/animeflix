@@ -1,5 +1,12 @@
 # Historial de versiones
 
+## v0.11.0-tv-preview.1 — 2026-11-17
+
+- En emisión es la primera sección y pantalla inicial de móvil/TV. Lista las series del horario público, agrupadas desde hoy hacia atrás durante siete días, con horas y días locales.
+- Ocultar al día contrasta el último capítulo registrado del horario con los vistos del perfil: llegar al día semanal no hace reaparecer una serie completada; un capítulo nuevo pendiente sí.
+- Explorar pasa a Catálogo, alfabético, sin prioridad de las 24 novedades. Se conservan Mi lista, Historial y Descargas.
+- Ficha con la acción de Mi lista junto al contador de pendientes y Continuar episodio X destacado arriba, sin duplicarlo en la lista de capítulos.
+
 ## v0.10.7-tv-preview.1 — 2026-11-16
 
 - Añade Saltar recap con tiempos compatibles de AniSkip y la misma validación de edición/duración.

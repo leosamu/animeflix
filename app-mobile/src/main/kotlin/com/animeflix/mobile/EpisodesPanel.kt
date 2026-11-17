@@ -27,7 +27,6 @@ fun EpisodesPanel(mediaUrl: String, model: EpisodesViewModel = profileViewModel(
     val history by historyModel.entries.collectAsStateWithLifecycle()
     val historyError by historyModel.error.collectAsStateWithLifecycle()
     val watched = history.filter { it.mediaUrl == mediaUrl.trimEnd('/') }.associateBy { it.episodeUrl }
-    val lastOpened = watched.values.filter { it.openedAt > 0 }.maxByOrNull { it.openedAt }
     var hideWatched by rememberSaveable(mediaUrl) { mutableStateOf(false) }
     var group by rememberSaveable(mediaUrl) { mutableIntStateOf(0) }
     var previousTarget by remember(mediaUrl) { mutableStateOf<Episode?>(null) }
@@ -39,12 +38,6 @@ fun EpisodesPanel(mediaUrl: String, model: EpisodesViewModel = profileViewModel(
  FilterChip(selected = hideWatched, onClick = { hideWatched = !hideWatched; group = 0 }, label = { Text("Ocultar vistos") })
 }
     historyError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-    lastOpened?.let { entry ->
-        Button(onClick = { openEpisode(context, entry.episodeUrl, "Episodio ${entry.number}") }, modifier = Modifier.fillMaxWidth()) {
-            Text("Retomar episodio ${entry.number}")
-        }
-        Text(if (entry.positionMs > 0) "Minuto guardado: ${playbackTime(entry.positionMs)}" else "Último abierto. Sin minuto guardado.", style = MaterialTheme.typography.bodySmall)
-    }
     when {
         mediaUrl.isBlank() -> Text("No hay episodios en este título de demostración.")
         state.mediaUrl != mediaUrl.trimEnd('/') || state.loading -> CircularProgressIndicator()
