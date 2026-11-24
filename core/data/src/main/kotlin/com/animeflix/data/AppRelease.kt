@@ -9,6 +9,7 @@ fun compatibleAppRelease(manifest: JSONObject, packageName: String, installedCod
     val expected = when (packageName) {
         "com.animeflix.mobile" -> "AnimeFlix-Mobile.apk"
         "com.animeflix.tv" -> "AnimeFlix-TV.apk"
+        "com.animeflix.mobile.doramas" -> "KDoramasFlix.apk"
         else -> return null
     }
     val artifacts = manifest.optJSONArray("artifacts") ?: return null

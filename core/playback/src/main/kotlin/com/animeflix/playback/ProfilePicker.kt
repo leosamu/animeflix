@@ -32,10 +32,8 @@ import com.animeflix.data.ViewingProfile
 
 @Composable
 fun ProfilePicker(account: AccountState, busy: Boolean, error: String?, onSelect: (ViewingProfile) -> Unit,
-    onCreate: (String) -> Unit, onRefresh: () -> Unit, onSignOut: () -> Unit) {
+    onCreate: (String) -> Unit, onRefresh: () -> Unit, onSignOut: () -> Unit, appName: String = "AnimeFlix") {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val updates = remember(context) { AppUpdates.get(context) }
-    val update by updates.state.collectAsState()
     val version = remember(context) { context.packageManager.getPackageInfo(context.packageName, 0).versionName }
     var adding by rememberSaveable { mutableStateOf(false) }
     var name by rememberSaveable { mutableStateOf("") }
@@ -46,7 +44,7 @@ fun ProfilePicker(account: AccountState, busy: Boolean, error: String?, onSelect
             horizontalArrangement = Arrangement.spacedBy(20.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 16.dp)) {
-                    Text("ANIMEFLIX", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleMedium,
+                    Text(appName.uppercase(), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Black)
                     Spacer(Modifier.height(28.dp))
                     Text("¿Quién está viendo?", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold,
@@ -98,10 +96,16 @@ fun ProfilePicker(account: AccountState, busy: Boolean, error: String?, onSelect
                         color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
                     if (!account.preview) Text(account.email, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(update.message.ifEmpty { "AnimeFlix $version · Actualizaciones desde GitHub" },
-                        style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
-                    OutlinedButton(onClick = { if (update.ready) updates.install() else updates.check() }, enabled = !update.busy,
-                        modifier = Modifier.tvRemoteFocus()) { Text(if (update.ready) "Instalar actualización" else "Buscar actualización") }
+                    if (appName == "AnimeFlix" || appName == "KDoramasFlix") {
+                        val updates = remember(context) { AppUpdates.get(context) }
+                        val update by updates.state.collectAsState()
+                        Text(update.message.ifEmpty { "$appName $version · Actualizaciones desde GitHub" },
+                            style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
+                        OutlinedButton(onClick = { if (update.ready) updates.install() else updates.check() }, enabled = !update.busy,
+                            modifier = Modifier.tvRemoteFocus()) { Text(if (update.ready) "Instalar actualización" else "Buscar actualización") }
+                    } else {
+                        Text("$appName $version", style = MaterialTheme.typography.bodySmall)
+                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         if (!account.preview) TextButton(onClick = onRefresh, enabled = !busy) { Text("Actualizar perfiles") }
                         TextButton(onClick = onSignOut, enabled = !busy, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)) {

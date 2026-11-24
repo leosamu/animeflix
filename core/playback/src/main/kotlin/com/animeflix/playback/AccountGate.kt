@@ -35,7 +35,7 @@ inline fun <reified T : ViewModel> profileViewModel(): T = viewModel(key = "${Lo
 /** Shared account/profile entry for phone and TV. QA retains its deterministic, isolated catalog. */
 @Composable
 fun AccountGate(enabled: Boolean = true, allowPreview: Boolean = false, authCallback: String? = null,
-    onAuthCallbackConsumed: () -> Unit = {}, content: @Composable () -> Unit) {
+    onAuthCallbackConsumed: () -> Unit = {}, appName: String = "AnimeFlix", content: @Composable () -> Unit) {
     if (!enabled) { content(); return }
     val context = LocalContext.current
     val accounts = remember { AccountManager.create(context) }
@@ -110,7 +110,7 @@ fun AccountGate(enabled: Boolean = true, allowPreview: Boolean = false, authCall
                     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(28.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Spacer(Modifier.height(24.dp))
-                        Text("ANIMEFLIX", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Black)
+                        Text(appName.uppercase(), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Black)
                         Text("Una cuenta, una aventura para cada perfil.")
                         if (accounts.config.configured) {
                             Text(if (register) "Crear cuenta" else "Iniciar sesión", style = MaterialTheme.typography.titleLarge)
@@ -153,7 +153,7 @@ fun AccountGate(enabled: Boolean = true, allowPreview: Boolean = false, authCall
                 account.selected == null -> {
                     ProfilePicker(account, busy, error,
                         onSelect = { run { accounts.select(it) } }, onCreate = { run { accounts.createProfile(it) } },
-                        onRefresh = { run { accounts.refreshProfiles() } }, onSignOut = { run { accounts.signOut() } })
+                        onRefresh = { run { accounts.refreshProfiles() } }, onSignOut = { run { accounts.signOut() } }, appName = appName)
                 }
                 else -> key(account.accountId, account.selected?.id) {
                     val repository = remember { ProfileAnimeRepository.create(context) }

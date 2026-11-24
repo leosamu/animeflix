@@ -76,7 +76,7 @@ internal fun TvNativePlayerLayout(title: String, episodeUrl: String, servers: Li
 }
 
 @Composable
-internal fun Modifier.tvRemoteFocus(): Modifier {
+fun Modifier.tvRemoteFocus(): Modifier {
     var focused by remember { mutableStateOf(false) }
     return this.onFocusChanged { focused = it.hasFocus }.border(3.dp,
         if(focused) Color.White else Color.Transparent, RoundedCornerShape(16.dp))

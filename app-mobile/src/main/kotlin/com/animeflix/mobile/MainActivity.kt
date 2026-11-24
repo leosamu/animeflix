@@ -15,7 +15,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         receiveCallback(intent)
         setContent { AccountGate(enabled = !BuildConfig.DEMO_CATALOG, allowPreview = BuildConfig.PREVIEW_PROFILES,
-            authCallback = callback, onAuthCallbackConsumed = { callback = null }) { AnimeFlixApp() } }
+            authCallback = callback, onAuthCallbackConsumed = { callback = null },
+            appName = if (BuildConfig.DORAMAS) "KDoramasFlix" else "AnimeFlix") {
+            ProductApp()
+        } }
     }
     override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); setIntent(intent); receiveCallback(intent) }
     private fun receiveCallback(incoming: Intent) {

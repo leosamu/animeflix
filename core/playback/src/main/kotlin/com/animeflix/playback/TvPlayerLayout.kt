@@ -33,31 +33,40 @@ internal fun TvPlayerLayout(title: String, servers: List<PlaybackServer>, loadin
     LaunchedEffect(menu) { if(menu) first.requestFocus() }
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         player(original, selected, fit, reload, !menu, { menu = true })
-        if(menu) Column(Modifier.align(Alignment.CenterStart).fillMaxHeight().widthIn(max = 420.dp)
-            .clip(RoundedCornerShape(20.dp)).background(AnimeFlixColors.surface.copy(alpha = 0.97f)).verticalScroll(rememberScrollState()).padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(title, style = MaterialTheme.typography.titleLarge)
-            Button(onClick = { menu = false }, modifier = Modifier.fillMaxWidth().tvRemoteFocus().focusRequester(first)) { Text("Ver vídeo · ocultar controles") }
-            onNative?.let { Button(onClick = it, modifier = Modifier.fillMaxWidth().tvRemoteFocus()) { Text("Usar reproducción nativa") } }
+        if(menu) TvPlaybackPanel(title, Modifier.align(Alignment.CenterStart)) {
+            TvPlaybackButton("Ver vídeo · ocultar controles", { menu = false }, Modifier.focusRequester(first))
+            onNative?.let { TvPlaybackButton("Usar reproducción nativa", it) }
             Text("Cruceta: puntero · OK: pulsar · Atrás o Menú: controles", style = MaterialTheme.typography.bodySmall)
-            Button(onClick = { reload++; menu = false }, modifier = Modifier.fillMaxWidth().tvRemoteFocus()) { Text("Recargar reproductor") }
-            Button(onClick = { fit = !fit; menu = false }, modifier = Modifier.fillMaxWidth().tvRemoteFocus()) {
-                Text(if(fit) "Mostrar página completa" else "Ajustar vídeo a la pantalla")
-            }
+            TvPlaybackButton("Recargar reproductor", { reload++; menu = false })
+            TvPlaybackButton(if (fit) "Mostrar página completa" else "Ajustar vídeo a la pantalla", { fit = !fit; menu = false })
             positionLabel?.let { Text(it) }
-            Button(onClick = onMark, modifier = Modifier.fillMaxWidth().tvRemoteFocus()) { Text(if(watched) "Visto · desmarcar" else "Marcar como visto") }
+            TvPlaybackButton(if (watched) "Visto · desmarcar" else "Marcar como visto", onMark)
             if(loading) Text("Cargando servidores…")
             error?.let { Text(it) }
             Text("Servidor", style = MaterialTheme.typography.titleMedium)
-            Button(onClick = { original = true; menu = false }, modifier = Modifier.fillMaxWidth().tvRemoteFocus()) { Text("Reproductor de la web" + if(original) " ✓" else "") }
+            TvPlaybackButton("Reproductor de la web" + if (original) " ✓" else "", { original = true; menu = false })
             servers.forEachIndexed { index, server ->
-                Button(onClick = { original = false; selected = index; menu = false }, modifier = Modifier.fillMaxWidth().tvRemoteFocus()) {
-                    Text(server.name + if(!original && index == selected) " ✓" else "")
-                }
+                TvPlaybackButton(server.name + if (!original && index == selected) " ✓" else "",
+                    { original = false; selected = index; menu = false })
             }
-            Button(onClick = onBack, modifier = Modifier.fillMaxWidth().tvRemoteFocus()) { Text("Volver a los episodios") }
+            TvPlaybackButton("Volver a los episodios", onBack)
         }
     }
+}
+
+@Composable
+fun TvPlaybackPanel(title: String, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Column(modifier.fillMaxHeight().widthIn(max = 420.dp)
+        .clip(RoundedCornerShape(20.dp)).background(AnimeFlixColors.surface.copy(alpha = 0.97f))
+        .verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(title, style = MaterialTheme.typography.titleLarge)
+        content()
+    }
+}
+
+@Composable
+fun TvPlaybackButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
+    Button(onClick = onClick, enabled = enabled, modifier = modifier.fillMaxWidth().tvRemoteFocus()) { Text(label) }
 }
 
 /** Only resizes the published iframe; preserves its source, parent page and scripts. */

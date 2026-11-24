@@ -10,7 +10,7 @@ import android.os.SystemClock
 import android.webkit.WebView
 
 /** Remote gestures are dispatched only to this app-owned WebView. */
-internal class RemotePlayerWebView(context: Context, private val tv: Boolean) : WebView(context) {
+class RemotePlayerWebView(context: Context, private val tv: Boolean) : WebView(context) {
     var onExitControls: () -> Unit = {}
     private var pointer = false
     private var xPosition = -1f

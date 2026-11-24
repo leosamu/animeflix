@@ -17,10 +17,10 @@ import java.io.File
 import java.net.URL
 import java.security.MessageDigest
 
-internal data class UpdateStatus(val message: String = "", val busy: Boolean = false, val ready: Boolean = false)
+data class UpdateStatus(val message: String = "", val busy: Boolean = false, val ready: Boolean = false)
 
 /** Manual checks include preview releases; the installer always requires Android's consent. */
-internal class AppUpdates private constructor(private val context: Context) {
+class AppUpdates private constructor(private val context: Context) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val prefs = context.getSharedPreferences("app_updates", Context.MODE_PRIVATE)
     private val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
@@ -48,7 +48,7 @@ internal class AppUpdates private constructor(private val context: Context) {
         mutable.value = UpdateStatus("Buscando actualización…", busy = true)
         scope.launch {
             try {
-                if (context.packageName !in listOf("com.animeflix.mobile", "com.animeflix.tv")) {
+                if (context.packageName !in listOf("com.animeflix.mobile", "com.animeflix.tv", "com.animeflix.mobile.doramas")) {
                     mutable.value = UpdateStatus("Las actualizaciones están disponibles en la versión instalada desde GitHub.")
                     return@launch
                 }
@@ -77,13 +77,18 @@ internal class AppUpdates private constructor(private val context: Context) {
                         best = artifact; bestCode = artifact.getLong("versionCode"); bestUrl = asset.getString("browser_download_url")
                     }
                 }
-                if (best == null) { mutable.value = UpdateStatus("Ya tienes la versión más reciente (${installed.versionName})."); return@launch }
+                if (best == null) {
+                    mutable.value = UpdateStatus(if (context.packageName == "com.animeflix.mobile.doramas")
+                        "No hay una actualización de KDoramasFlix publicada para esta versión."
+                    else "Ya tienes la versión más reciente (${installed.versionName}).")
+                    return@launch
+                }
                 val artifact = best
                 requireGithub(bestUrl!!)
                 apk.parentFile!!.mkdirs()
                 apk.delete()
                 val id = manager.enqueue(DownloadManager.Request(Uri.parse(bestUrl))
-                    .setTitle("AnimeFlix ${artifact.getString("versionName")}")
+                    .setTitle("${context.applicationInfo.loadLabel(context.packageManager)} ${artifact.getString("versionName")}")
                     .setDescription("Actualización de la aplicación")
                     .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
                     .setDestinationUri(Uri.fromFile(apk)))

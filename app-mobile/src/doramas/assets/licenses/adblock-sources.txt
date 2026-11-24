@@ -1,0 +1,10 @@
+The experimental ad blocker incorporates adblock-rs-kt-wrapper 0.1.3 and Brave adblock-rust, licensed under MPL-2.0. See adblock-mpl-2.0.txt.
+
+Wrapper release and corresponding source
+https://github.com/mlm-games/adblock-rs-kt-wrapper/tree/0.1.3
+https://repo.maven.apache.org/maven2/io/github/mlm-games/adblock/0.1.3/adblock-0.1.3-sources.jar
+
+The KDoramasFlix Gradle build recompiles the Kotlin sources and adapts two early returns for Kotlin 2.1. It packages the native binaries from the same upstream release.
+
+Brave adblock-rust source
+https://github.com/brave/adblock-rust

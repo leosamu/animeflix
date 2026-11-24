@@ -85,6 +85,51 @@ class ProfileAnimeRepository private constructor(
         entries.putAll(previous.map { ProfileEntry("watched", it.pageUrl, JSONObject().put("watched", true).toString()) })
         requestSync()
     }
+    // Older AnimeFlix installs ignore preferences whose keys they do not recognize.
+    fun observeDoramasEntries(): Flow<List<ProfileEntry>> = observeEntries().map { rows ->
+        rows.mapNotNull { row ->
+            if (row.kind != "preference" || !row.itemKey.startsWith("doramas:")) return@mapNotNull null
+            val key = row.itemKey.removePrefix("doramas:")
+            row.copy(kind = key.substringBefore(':'), itemKey = key.substringAfter(':'))
+        }
+    }
+
+    suspend fun setDoramaFavorite(dorama: Dorama, enabled: Boolean) {
+        require(DoramasCatalog.series(dorama.url) != null)
+        putDorama("favorite", dorama.url, JSONObject().put("enabled", enabled)
+            .put("title", dorama.title).put("posterUrl", dorama.poster))
+    }
+
+    suspend fun recordDoramaOpened(episode: DoramaEpisode, title: String) {
+        require(DoramasCatalog.episode(episode.url) == episode)
+        putDorama("opened", episode.url, JSONObject().put("openedAt", System.currentTimeMillis()).put("title", title))
+    }
+
+    suspend fun markDoramaWatched(episode: DoramaEpisode, watched: Boolean) {
+        require(DoramasCatalog.episode(episode.url) == episode)
+        putDorama("watched", episode.url, JSONObject().put("watched", watched))
+    }
+
+    suspend fun markDoramaPrevious(episodes: List<DoramaEpisode>) {
+        require(episodes.all { DoramasCatalog.episode(it.url) == it })
+        val value = JSONObject().put("watched", true).toString()
+        checkNotNull(entries).putAll(episodes.distinct().map { ProfileEntry("preference", "doramas:watched:${it.url}", value) })
+        requestSync()
+    }
+
+    suspend fun setDoramaHideCaughtUp(enabled: Boolean) {
+        putDorama("preference", "hideCaughtUp", JSONObject().put("enabled", enabled))
+    }
+
+    suspend fun saveDoramaProgress(episode: DoramaEpisode, positionMs: Long, durationMs: Long) {
+        require(DoramasCatalog.episode(episode.url) == episode &&
+            durationMs in 60_000..86_400_000 && positionMs in 0..durationMs)
+        putDorama("progress", episode.url, JSONObject().put("positionMs", positionMs).put("durationMs", durationMs))
+    }
+
+    private suspend fun putDorama(kind: String, url: String, value: JSONObject) =
+        put("preference", "doramas:$kind:$url", value)
+
     private suspend fun put(kind: String, key: String, value: JSONObject) {
         checkNotNull(entries).put(ProfileEntry(kind, key, value.toString()))
         requestSync()

@@ -28,4 +28,10 @@ class AppReleaseTest {
         assertEquals(101L, compatibleAppRelease(manifest(artifact(code = 99), artifact(code = 101)), "com.animeflix.tv", 9)!!.versionCode)
         assertNull(compatibleAppRelease(JSONObject(), "com.animeflix.tv", 1))
     }
+    @Test fun doramasUsesItsOwnAssetAndVersionCode() {
+        val data = manifest(artifact(), artifact("com.animeflix.mobile.doramas", "KDoramasFlix.apk", 40))
+        assertEquals(40L, compatibleAppRelease(data, "com.animeflix.mobile.doramas", 39)?.versionCode)
+        assertNull(compatibleAppRelease(data, "com.animeflix.mobile.doramas", 40))
+        assertNull(compatibleAppRelease(data, "com.animeflix.mobile", 38))
+    }
 }
