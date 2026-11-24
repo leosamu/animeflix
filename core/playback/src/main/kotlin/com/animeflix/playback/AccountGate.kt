@@ -28,6 +28,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 val LocalProfileViewModelKey = staticCompositionLocalOf { "legacy" }
+val LocalProfileSwitchFocus = staticCompositionLocalOf<androidx.compose.ui.focus.FocusRequester?> { null }
 
 @Composable
 inline fun <reified T : ViewModel> profileViewModel(): T = viewModel(key = "${LocalProfileViewModelKey.current}:${T::class.java.name}")
@@ -165,12 +166,15 @@ fun AccountGate(enabled: Boolean = true, allowPreview: Boolean = false, authCall
                         }
                     }
                     Column(Modifier.fillMaxSize()) {
+                        val switchFocus = remember { androidx.compose.ui.focus.FocusRequester() }
                         ActiveProfileBar(checkNotNull(account.selected), account.preview, busy, sync.running,
                             onSwitch = { run { accounts.select(null) } }, onSync = { scope.launch { repository.sync() } },
-                            avatarIndex = account.profiles.indexOfFirst { it.id == account.selected?.id }.coerceAtLeast(0))
+                            avatarIndex = account.profiles.indexOfFirst { it.id == account.selected?.id }.coerceAtLeast(0),
+                            switchFocus = switchFocus)
                         sync.message?.let { Text(it, Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
                         Box(Modifier.weight(1f)) {
-                            CompositionLocalProvider(LocalProfileViewModelKey provides "${account.accountId}:${account.selected?.id}") { content() }
+                            CompositionLocalProvider(LocalProfileViewModelKey provides "${account.accountId}:${account.selected?.id}",
+                                LocalProfileSwitchFocus provides switchFocus) { content() }
                         }
                     }
                 }

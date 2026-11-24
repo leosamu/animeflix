@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -29,6 +30,7 @@ import com.animeflix.data.DoramasCatalog
 import com.animeflix.data.ProfileAnimeRepository
 import com.animeflix.data.ProfileEntry
 import com.animeflix.playback.LocalProfileViewModelKey
+import com.animeflix.playback.LocalProfileSwitchFocus
 import com.animeflix.playback.tvRemoteFocus
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
@@ -53,6 +55,7 @@ internal fun ProductApp() {
         context.getSystemService(UiModeManager::class.java)?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
     }
     val keyboard = LocalSoftwareKeyboardController.current
+    val switchProfile = LocalProfileSwitchFocus.current
     val imeVisible = WindowInsets.isImeVisible
     val navigationFocus = remember { FocusRequester() }
     val repository = remember { ProfileAnimeRepository.create(context) }
@@ -314,8 +317,13 @@ internal fun ProductApp() {
                     Text(if (hideCaughtUp) "Mostrar al día" else "Ocultar al día")
                 }
             if (tab == LibraryTab.Catalog) {
-                OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth().padding(12.dp).onPreviewKeyEvent {
-                    if (!tv || imeVisible || it.key !in listOf(Key.DirectionCenter, Key.Enter)) false
+                OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth().padding(12.dp).focusProperties {
+                    if (tv && switchProfile != null) up = switchProfile
+                }.onPreviewKeyEvent {
+                    if (tv && it.key == Key.DirectionUp && switchProfile != null) {
+                        if (it.type == KeyEventType.KeyDown) switchProfile.requestFocus()
+                        true
+                    } else if (!tv || imeVisible || it.key !in listOf(Key.DirectionCenter, Key.Enter)) false
                     else {
                         if (it.type == KeyEventType.KeyDown) keyboard?.show()
                         true

@@ -16,6 +16,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -34,6 +37,10 @@ import com.animeflix.data.ViewingProfile
 fun ProfilePicker(account: AccountState, busy: Boolean, error: String?, onSelect: (ViewingProfile) -> Unit,
     onCreate: (String) -> Unit, onRefresh: () -> Unit, onSignOut: () -> Unit, appName: String = "AnimeFlix") {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val tvDoramas = appName == "KDoramasFlix" &&
+        context.getSystemService(android.app.UiModeManager::class.java)?.currentModeType == android.content.res.Configuration.UI_MODE_TYPE_TELEVISION
+    val updateFocus = remember { FocusRequester() }
+    val firstProfile = remember { FocusRequester() }
     val version = remember(context) { context.packageManager.getPackageInfo(context.packageName, 0).versionName }
     var adding by rememberSaveable { mutableStateOf(false) }
     var name by rememberSaveable { mutableStateOf("") }
@@ -53,6 +60,17 @@ fun ProfilePicker(account: AccountState, busy: Boolean, error: String?, onSelect
                         color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 10.dp))
                     if (account.preview) Text("VISTA PREVIA LOCAL", style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.secondary, modifier = Modifier.padding(top = 16.dp))
+                    if (tvDoramas) {
+                        val updates = remember(context) { AppUpdates.get(context) }
+                        val update by updates.state.collectAsState()
+                        if (update.message.isNotBlank()) Text(update.message, style = MaterialTheme.typography.bodySmall)
+                        OutlinedButton(onClick = { if (update.ready) updates.install() else updates.check() },
+                            modifier = Modifier.focusRequester(updateFocus).focusProperties {
+                                if (account.profiles.isNotEmpty()) down = firstProfile
+                            }.tvRemoteFocus()) {
+                            Text(if (update.ready) "Instalar actualización" else "Buscar actualización")
+                        }
+                    }
                 }
             }
             itemsIndexed(account.profiles, key = { _, profile -> profile.id }) { index, profile ->
@@ -63,7 +81,10 @@ fun ProfilePicker(account: AccountState, busy: Boolean, error: String?, onSelect
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.scale(scale)) {
                     Card(onClick = { onSelect(profile) }, enabled = !busy, interactionSource = interaction,
                         shape = RoundedCornerShape(28.dp), border = BorderStroke(if (focused) 3.dp else 1.dp, border),
-                        modifier = Modifier.fillMaxWidth().aspectRatio(1f).semantics { contentDescription = "Ver como ${profile.name}" }) {
+                        modifier = Modifier.fillMaxWidth().aspectRatio(1f).then(
+                            if (tvDoramas) (if (index == 0) Modifier.focusRequester(firstProfile) else Modifier)
+                                .focusProperties { up = updateFocus } else Modifier
+                        ).semantics { contentDescription = "Ver como ${profile.name}" }) {
                         ProfileAvatar(profile.id, Modifier.fillMaxSize(), paletteIndex = index)
                     }
                     Text(profile.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
@@ -96,7 +117,7 @@ fun ProfilePicker(account: AccountState, busy: Boolean, error: String?, onSelect
                         color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
                     if (!account.preview) Text(account.email, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    if (appName == "AnimeFlix" || appName == "KDoramasFlix") {
+                    if (!tvDoramas && (appName == "AnimeFlix" || appName == "KDoramasFlix")) {
                         val updates = remember(context) { AppUpdates.get(context) }
                         val update by updates.state.collectAsState()
                         Text(update.message.ifEmpty { "$appName $version · Actualizaciones desde GitHub" },
@@ -116,6 +137,12 @@ fun ProfilePicker(account: AccountState, busy: Boolean, error: String?, onSelect
             }
         }
     }
+    LaunchedEffect(tvDoramas) {
+        if (tvDoramas) {
+            withFrameNanos { }
+            updateFocus.requestFocus()
+        }
+    }
     if (adding) AlertDialog(onDismissRequest = { if (!busy) adding = false },
         shape = RoundedCornerShape(28.dp), containerColor = MaterialTheme.colorScheme.surface,
         title = { Text("Un espacio para ti", fontWeight = FontWeight.Bold) },
@@ -130,9 +157,11 @@ fun ProfilePicker(account: AccountState, busy: Boolean, error: String?, onSelect
 
 @Composable
 fun ActiveProfileBar(profile: ViewingProfile, preview: Boolean, busy: Boolean, syncing: Boolean,
-    onSwitch: () -> Unit, onSync: () -> Unit, avatarIndex: Int = 0) {
+    onSwitch: () -> Unit, onSync: () -> Unit, avatarIndex: Int = 0, switchFocus: FocusRequester? = null) {
     Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background).padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        TextButton(onClick = onSwitch, enabled = !busy, modifier = Modifier.weight(1f), contentPadding = PaddingValues(4.dp),
+        TextButton(onClick = onSwitch, enabled = !busy, modifier = Modifier.weight(1f).then(
+            if (switchFocus != null) Modifier.focusRequester(switchFocus).tvRemoteFocus() else Modifier
+        ), contentPadding = PaddingValues(4.dp),
             colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 ProfileAvatar(profile.id, Modifier.size(32.dp), paletteIndex = avatarIndex)
