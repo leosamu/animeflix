@@ -141,6 +141,23 @@ class OfflineContinuationTest {
                         runCatching { rule.onNodeWithText("Saltar opening").assertIsFocused(); true }.getOrDefault(false)
                     }
                     rule.onNodeWithText("Saltar opening").assertIsFocused()
+                    // Let the focused overlay expire without clicking it: the remote must remain usable.
+                    scenario.onActivity { findPlayer(it.window.decorView)!!.player!!.seekTo(31_000) }
+                    rule.waitUntil(5_000) { rule.onAllNodesWithText("Saltar opening").fetchSemanticsNodes().isEmpty() }
+                    rule.waitUntil(5_000) {
+                        var focused = false
+                        scenario.onActivity { focused = findPlayer(it.window.decorView)!!.hasFocus() }
+                        focused
+                    }
+                    scenario.onActivity { findPlayer(it.window.decorView)!!.hideController() }
+                    android.os.ParcelFileDescriptor.AutoCloseInputStream(instrumentation.uiAutomation.executeShellCommand("input keyevent KEYCODE_DPAD_CENTER")).use { it.readBytes() }
+                    rule.waitUntil(5_000) {
+                        var visible = false
+                        scenario.onActivity { visible = findPlayer(it.window.decorView)!!.isControllerFullyVisible }
+                        visible
+                    }
+                    scenario.onActivity { findPlayer(it.window.decorView)!!.player!!.seekTo(16_000) }
+                    rule.waitUntil(5_000) { rule.onAllNodesWithText("Saltar opening").fetchSemanticsNodes().isNotEmpty() }
                 }
                 rule.onNodeWithText("Saltar opening").performClick()
                 scenario.onActivity { assertTrue(findPlayer(it.window.decorView)!!.player!!.currentPosition >= 30_000) }

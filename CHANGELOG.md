@@ -1,5 +1,11 @@
 # Historial de versiones
 
+## v0.11.1-tv-preview.1 — 2026-11-24
+
+- Buscar actualización desde la selección de perfiles, con descarga del APK móvil/TV desde GitHub y comprobación de versión, integridad y firma antes de solicitar la instalación en Android.
+- Recuperación del foco del mando en el reproductor nativo de TV, incluida la desaparición de un botón de salto enfocado y la reapertura de controles ocultos.
+- La primera instalación requiere descarga manual. Las siguientes versiones compatibles podrán descargarse desde la aplicación.
+
 ## v0.11.0-tv-preview.1 — 2026-11-17
 
 - En emisión es la primera sección y pantalla inicial de móvil/TV. Lista las series del horario público, agrupadas desde hoy hacia atrás durante siete días, con horas y días locales.

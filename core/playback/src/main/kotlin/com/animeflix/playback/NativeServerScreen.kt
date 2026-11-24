@@ -262,6 +262,23 @@ internal fun NativeVideo(source: ResolvedVideo, episodeUrl: String, resumePositi
             }
         }
     }
+    // AndroidView.update does not run merely because native controller focus was lost.
+    LaunchedEffect(playerView, tv, fullScreen, lifecycle) {
+        if (tv && fullScreen) lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while (true) {
+                val view = playerView
+                if (view != null && view.hasWindowFocus() && !view.hasFocus() && !skipFocused) view.requestFocus()
+                delay(250)
+            }
+        }
+    }
+    LaunchedEffect(activeSkip, fullScreen) {
+        if (tv && fullScreen && activeSkip == null && skipFocused) {
+            skipFocused = false
+            withFrameNanos { }
+            playerView?.requestFocus()
+        }
+    }
     Column(modifier) {
         if(buffering && !failure) LinearProgressIndicator(Modifier.fillMaxWidth())
         if(failure) {
