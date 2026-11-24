@@ -2,6 +2,7 @@ package com.animeflix.mobile
 
 import android.os.Bundle
 import android.content.Intent
+import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import com.animeflix.playback.AccountGate
@@ -10,6 +11,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 
 class MainActivity : ComponentActivity() {
+    var playbackRemoteKey: ((KeyEvent) -> Boolean)? = null
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean =
+        playbackRemoteKey?.invoke(event) == true || super.dispatchKeyEvent(event)
+
     private var callback by mutableStateOf<String?>(null)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

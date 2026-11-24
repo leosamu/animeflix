@@ -124,6 +124,18 @@ internal fun DoramasPlayer(
     var pendingFullscreen by remember { mutableStateOf<String?>(null) }
     val tappedFullscreen = remember { arrayOfNulls<String>(1) }
     var chrome by remember { mutableStateOf<WebChromeClient?>(null) }
+    val activity = remember(context) {
+        generateSequence(context) { (it as? ContextWrapper)?.baseContext }.filterIsInstance<MainActivity>().firstOrNull()
+    }
+    DisposableEffect(activity, webView, tv) {
+        val player = webView as? RemotePlayerWebView
+        if (!tv || activity == null || player == null) return@DisposableEffect onDispose {}
+        val route = player::dispatchRemoteKey
+        activity.playbackRemoteKey = route
+        onDispose {
+            if (activity.playbackRemoteKey === route) activity.playbackRemoteKey = null
+        }
+    }
     BackHandler {
         when {
             fullscreen != null -> chrome?.onHideCustomView()

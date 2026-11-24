@@ -19,6 +19,21 @@ class RemotePlayerWebView(context: Context, private val tv: Boolean) : WebView(c
     private val handledKeys = mutableSetOf<Int>()
     fun controlVideo() { pointer = true; isFocusable = true; isFocusableInTouchMode = true; requestFocus(); invalidate() }
     fun releaseControls() { pointer = false; clearFocus(); isFocusable = false; isFocusableInTouchMode = false; invalidate() }
+    /** TV activities can route remote keys before Compose or the browser consumes them. */
+    fun dispatchRemoteKey(event: KeyEvent): Boolean {
+        val code = event.keyCode
+        if (!tv || (!pointer && code !in handledKeys)) return false
+        if (code !in remoteKeys) return false
+        return when (event.action) {
+            KeyEvent.ACTION_DOWN -> onKeyDown(code, event)
+            KeyEvent.ACTION_UP -> onKeyUp(code, event)
+            else -> false
+        }
+    }
+
+    private val remoteKeys = setOf(KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT,
+        KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_CENTER,
+        KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_MENU)
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         xPosition = (if(xPosition < 0) w / 2f else xPosition).coerceIn(1f, (w - 1).coerceAtLeast(1).toFloat())
