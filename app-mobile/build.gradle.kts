@@ -57,7 +57,7 @@ android {
             initWith(getByName("debug"))
             isDebuggable = false
             applicationIdSuffix = ".doramas"
-            versionNameSuffix = "-doramas-preview.15"
+            versionNameSuffix = "-doramas-preview.16"
             matchingFallbacks += listOf("debug")
             buildConfigField("boolean", "DORAMAS", "true")
             buildConfigField("boolean", "PREVIEW_PROFILES", "true")
@@ -80,7 +80,7 @@ androidComponents.beforeVariants(androidComponents.selector().withBuildType("dor
     it.minSdk = 26
 }
 androidComponents.onVariants(androidComponents.selector().withBuildType("doramas")) {
-    it.outputs.forEach { output -> output.versionCode.set(47) }
+    it.outputs.forEach { output -> output.versionCode.set(48) }
 }
 tasks.matching { it.name == "preDoramasBuild" }.configureEach { dependsOn(prepareBrave) }
 dependencies {

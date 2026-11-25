@@ -9,6 +9,30 @@ class DoramasCatalogTest {
     private val now = 1_800_000_000_000L
 
     @Test
+    fun detailsKeepEpisodesAndRecognizeUnpublishedSeries() {
+        val page = pageWith("""
+            {"name":"Pendiente","slug":"pendiente","country":"corea","overview_es":"Una sinopsis",
+             "number_of_episodes_online":0,"number_of_episodes":10,"seasons":[{"commingSoon":true}]}
+        """.trimIndent(), """<h1>Pendiente</h1><a href="/capitulos/pendiente-1x1">Episodio futuro</a>""")
+        val details = DoramasCatalog.readDetails(page, Dorama("pendiente", "Pendiente"))
+        assertTrue(details.unpublished)
+        assertEquals("Una sinopsis", details.synopsis)
+        assertEquals("Corea del Sur", details.country)
+        assertEquals(listOf(DoramaEpisode("pendiente", 1, 1)), details.episodes)
+    }
+
+    @Test
+    fun parsesSimilarTitlesUsingTheProvidersOrderAndReference() {
+        val response = """
+            0:{"a":"$@2"}
+            1:{}
+            2:[{"slug":"vincenzo","name":"Vincenzo"},{"slug":"otro","name":"Other","name_es":"Otro","poster_path":"/poster.jpg"}]
+        """.trimIndent()
+        val result = DoramasCatalog.parseSimilar(response, "vincenzo")
+        assertEquals(listOf(Dorama("otro", "Otro", "https://image.tmdb.org/t/p/w342/poster.jpg")), result)
+    }
+
+    @Test
     fun combinesCatalogFiltersWithSearchResults() {
         val page = pageWith("""
             [{"_id":"related","slug":"otro"},{"_id":"v","slug":"vincenzo","country":"corea","first_air_date":"2021-02-20",

@@ -25,6 +25,7 @@ import coil.compose.AsyncImage
 import com.animeflix.data.Dorama
 import com.animeflix.data.DoramaAvailability
 import com.animeflix.data.DoramaEpisode
+import com.animeflix.data.DoramaDetails
 import com.animeflix.data.DoramaFilter
 import com.animeflix.data.DoramaFilterOption
 import com.animeflix.data.DoramaPublication
@@ -49,6 +50,7 @@ import java.util.Locale
 private enum class LibraryTab(val label: String) {
     Recent("Últimos"), Catalog("Catálogo"), Favorites("Mi lista"), History("Historial"), Downloads("Descargas")
 }
+private enum class DetailTab(val label: String) { Episodes("Episodios"), Details("Detalles"), Similar("Similares") }
 
 @Composable
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
@@ -88,7 +90,10 @@ internal fun ProductApp() {
     var hasMore by remember { mutableStateOf(true) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-    var episodes by remember { mutableStateOf<List<DoramaEpisode>?>(null) }
+    var details by remember { mutableStateOf<DoramaDetails?>(null) }
+    val episodes = details?.takeIf { it.show.slug == selected?.slug }?.episodes
+    var detailTab by remember(selected?.slug) { mutableStateOf(DetailTab.Episodes) }
+    var previousDetails by remember { mutableStateOf(emptyList<Dorama>()) }
     var detailError by remember { mutableStateOf(false) }
     var detailRetry by remember { mutableIntStateOf(0) }
     var hideWatched by rememberSaveable { mutableStateOf(false) }
@@ -150,10 +155,10 @@ internal fun ProductApp() {
     }
     LaunchedEffect(selected, detailRetry) {
         val dorama = selected ?: return@LaunchedEffect
-        episodes = null
+        details = null
         detailError = false
         try {
-            episodes = DoramasCatalog.episodes(dorama)
+            details = DoramasCatalog.details(dorama)
         } catch (failure: Exception) {
             if (failure is CancellationException) throw failure
             detailError = true
@@ -170,7 +175,6 @@ internal fun ProductApp() {
     val progress = entries.filter { it.kind == "progress" }.associateBy { it.itemKey }
     val watched = entries.filter { it.kind == "watched" && it.json()?.optBoolean("watched") == true }
         .mapTo(mutableSetOf()) { it.itemKey }
-    val watchedSlugs = watched.mapNotNull { DoramasCatalog.episode(it)?.slug }.toSet()
     val hideCaughtUp = entries.find { it.kind == "preference" && it.itemKey == "hideCaughtUp" }
         ?.json()?.optBoolean("enabled") == true
 
@@ -226,7 +230,11 @@ internal fun ProductApp() {
     }
 
     val dorama = selected
-    BackHandler(enabled = dorama != null) { selected = null }
+    fun backFromDetail() {
+        selected = previousDetails.lastOrNull()
+        previousDetails = previousDetails.dropLast(1)
+    }
+    BackHandler(enabled = dorama != null) { backFromDetail() }
     previousTarget?.let { target ->
         AlertDialog(
             onDismissRequest = { previousTarget = null },
@@ -258,11 +266,31 @@ internal fun ProductApp() {
     }
     Column(Modifier.fillMaxSize()) {
         if (dorama != null) {
-            TextButton(onClick = { selected = null }) { Text("Volver") }
-            Text(dorama.title, Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.headlineSmall)
+            val info = details?.takeIf { it.show.slug == dorama.slug }
+            val display = info?.show ?: dorama
+            TextButton(onClick = ::backFromDetail) { Text("Volver") }
+            Text(display.title, Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.headlineSmall)
             TextButton(onClick = {
-                scope.launch { repository.setDoramaFavorite(dorama, dorama.slug !in favorites) }
+                scope.launch { repository.setDoramaFavorite(display, dorama.slug !in favorites) }
             }) { Text(if (dorama.slug in favorites) "Quitar de Mi lista" else "Añadir a Mi lista") }
+            TabRow(selectedTabIndex = detailTab.ordinal) {
+                DetailTab.entries.forEach { option ->
+                    Tab(selected = detailTab == option, onClick = { detailTab = option },
+                        modifier = if (tv) Modifier.tvRemoteFocus() else Modifier, text = { Text(option.label) })
+                }
+            }
+            if (detailTab != DetailTab.Episodes) {
+                when {
+                    detailError -> TextButton(onClick = { detailRetry++ }) { Text("Reintentar ficha") }
+                    info == null -> CircularProgressIndicator(Modifier.padding(16.dp))
+                    detailTab == DetailTab.Details -> DoramaInfo(info)
+                    else -> DoramaSimilar(info, tv) { related ->
+                        previousDetails = previousDetails + display
+                        selected = related
+                    }
+                }
+                return@Column
+            }
             val list = episodes
             val resume = list.orEmpty().firstOrNull { it.url == history.firstOrNull { row ->
                 row.itemKey !in watched && row.itemKey in progress && DoramasCatalog.episode(row.itemKey)?.slug == dorama.slug
@@ -273,7 +301,7 @@ internal fun ProductApp() {
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 next?.let { episode ->
-                    Button(onClick = { play(episode, dorama.title) }, modifier = Modifier.padding(start = 12.dp)) {
+                    Button(onClick = { play(episode, display.title) }, modifier = Modifier.padding(start = 12.dp)) {
                         Text("Continuar · T${episode.season} E${episode.number}")
                     }
                 }
@@ -287,6 +315,10 @@ internal fun ProductApp() {
                 list == null -> CircularProgressIndicator(Modifier.padding(16.dp))
                 list.isEmpty() -> Text("No hay episodios disponibles.", Modifier.padding(16.dp))
                 else -> LazyColumn {
+                    if (info != null && info.synopsis.isNotBlank()) item {
+                        Text(info.synopsis, Modifier.padding(horizontal = 16.dp, vertical = 10.dp), maxLines = 3,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    }
                     list.filterNot { hideWatched && it.url in watched }.groupBy { it.season }.forEach { (season, seasonEpisodes) ->
                         item { Text("Temporada $season", Modifier.padding(16.dp), style = MaterialTheme.typography.titleMedium) }
                         items(seasonEpisodes, key = { it.url }) { episode ->
@@ -319,7 +351,7 @@ internal fun ProductApp() {
                                         }
                                     }
                                 },
-                                modifier = Modifier.clickable(enabled = availability.canPlay()) { play(episode, dorama.title) }
+                                modifier = Modifier.clickable(enabled = availability.canPlay()) { play(episode, display.title) }
                             )
                         }
                     }
@@ -424,11 +456,14 @@ internal fun ProductApp() {
                     }
                     items(displayed, key = { it.slug }) { show ->
                         val caughtUp by produceState(false, show.slug, hideCaughtUp, watched) {
-                            value = if (!hideCaughtUp || show.slug !in watchedSlugs) false else try {
-                                val published = DoramasCatalog.episodes(show)
-                                published.isNotEmpty() && published.all { episode ->
-                                    episode.url in watched || available(episode).upcoming
-                                }
+                            value = if (!hideCaughtUp) false else try {
+                                val info = DoramasCatalog.details(show)
+                                info.unpublished || (info.episodes.isNotEmpty() && info.episodes.all { episode ->
+                                        if (episode.url in watched) true else {
+                                            val status = available(episode)
+                                            status.upcoming || (status.checked && status.audio.isEmpty())
+                                        }
+                                    })
                             } catch (failure: Exception) {
                                 if (failure is CancellationException) throw failure
                                 false

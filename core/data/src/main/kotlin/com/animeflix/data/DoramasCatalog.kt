@@ -22,6 +22,28 @@ data class DoramaEpisode(val slug: String, val season: Int, val number: Int) {
     val url get() = "${DoramasCatalog.ORIGIN}/capitulos/$slug-${season}x$number"
 }
 data class DoramaPublication(val episode: DoramaEpisode, val title: String, val poster: String)
+data class DoramaCast(val name: String, val character: String)
+data class DoramaDetails(
+    val show: Dorama,
+    val synopsis: String,
+    val year: String,
+    val country: String,
+    val runtime: Int?,
+    val episodeCount: Int?,
+    val publishedCount: Int?,
+    val status: String,
+    val genres: List<String>,
+    val labels: List<String>,
+    val networks: List<String>,
+    val audio: List<String>,
+    val subtitles: List<String>,
+    val cast: List<DoramaCast>,
+    val episodes: List<DoramaEpisode>,
+    val sourceId: String,
+    internal val scripts: List<String>
+) {
+    val unpublished get() = publishedCount == 0 || (status == "Próximamente" && episodes.isEmpty())
+}
 
 enum class DoramaFilter(val label: String, val parameter: String, val list: String? = null) {
     Genre("Género", "genreSlugs", "listGenres"),
@@ -50,6 +72,12 @@ object DoramasCatalog {
     private val seriesPath = Regex("/doramas/([a-z0-9-]+)")
     private val episodePath = Regex("/capitulos/([a-z0-9-]+)-(\\d+)x(\\d+)")
     private val checks = Semaphore(3)
+    private val detailsCache = java.util.Collections.synchronizedMap(
+        object : LinkedHashMap<String, Pair<Long, DoramaDetails>>(200, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Pair<Long, DoramaDetails>>?) = size > 200
+        }
+    )
+    @Volatile private var similarAction = "c015df4ea30b9c7c14421e44c89a891bd375b72fbb"
     private val filterAvailability = java.util.Collections.synchronizedMap(
         object : LinkedHashMap<String, Pair<Long, Boolean>>(300, 0.75f, true) {
             override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Pair<Long, Boolean>>?) = size > 300
@@ -200,11 +228,103 @@ object DoramasCatalog {
             Dorama(slug, title, poster).takeIf { title.isNotEmpty() }
         }.distinctBy { it.slug }
 
-    suspend fun episodes(dorama: Dorama): List<DoramaEpisode> = withContext(Dispatchers.IO) {
-        document(dorama.url).select("a[href]").mapNotNull { episode(it.attr("href")) }
-            .filter { it.slug == dorama.slug }.distinct()
-            .sortedWith(compareBy(DoramaEpisode::season, DoramaEpisode::number))
+    suspend fun details(dorama: Dorama): DoramaDetails = checks.withPermit {
+        val now = System.currentTimeMillis()
+        detailsCache[dorama.slug]?.takeIf { now - it.first < 300_000 }?.let { return@withPermit it.second }
+        withContext(Dispatchers.IO) { readDetails(document(dorama.url), dorama) }
+            .also { detailsCache[dorama.slug] = now to it }
     }
+
+    suspend fun episodes(dorama: Dorama): List<DoramaEpisode> = details(dorama).episodes
+
+    internal fun readDetails(page: Document, dorama: Dorama): DoramaDetails {
+        val info = objectsWithSlug(flight(page), dorama.slug)
+            .firstOrNull { it.optJSONArray("seasons") != null }
+        val title = page.selectFirst("h1")?.text()?.takeIf(String::isNotBlank) ?: dorama.title
+        fun field(key: String) = info?.optString(key)?.takeUnless { it.startsWith("$") || it == "null" }.orEmpty()
+        fun number(key: String): Int? = info?.optInt(key, -1)?.takeIf { it >= 0 }
+        fun taxonomy(key: String, path: String): List<String> {
+            val tags = info?.optJSONArray(key).objects().mapNotNull { it.optString("name").takeIf(String::isNotBlank) }
+            return (tags + page.select("a[href^=/$path/]").map { it.text() }.filter(String::isNotBlank)).distinct()
+        }
+        val synopsis = field("overview_es").ifBlank {
+            page.select("h2,h3,h4").firstOrNull { it.text().equals("Sinopsis", true) }
+                ?.nextElementSibling()?.text().orEmpty()
+        }.ifBlank { field("overview") }
+        val seasons = info?.optJSONArray("seasons").objects()
+        val status = when {
+            field("status") == "finished" || info?.optBoolean("isFinish") == true -> "Finalizado"
+            field("status") == "commingSoon" || seasons.isNotEmpty() && seasons.all { it.optBoolean("commingSoon") } -> "Próximamente"
+            field("status") == "pause" || seasons.any { it.optBoolean("pause") } -> "En pausa"
+            field("status") == "emision" || seasons.any { it.optBoolean("emision") } -> "En emisión"
+            field("status") == "uploading" || seasons.any { it.optBoolean("uploading") } -> "Publicando"
+            else -> ""
+        }
+        val country = field("country").replace('-', ' ').replaceFirstChar { it.uppercase() }
+            .let { if (it == "Corea") "Corea del Sur" else it }
+        val subs = info?.optJSONArray("subtitles_available")
+        val episodes = page.select("a[href]").mapNotNull { episode(it.attr("href")) }
+            .filter { it.slug == dorama.slug }.distinct().sortedWith(compareBy(DoramaEpisode::season, DoramaEpisode::number))
+        val poster = page.selectFirst("meta[property=og:image]")?.absUrl("content")
+            ?.takeIf { it.startsWith("https://") } ?: posterUrl(field("poster_path")).ifBlank { dorama.poster }
+        return DoramaDetails(
+            Dorama(dorama.slug, title, poster), synopsis, field("first_air_date").substringBefore('-').ifBlank { field("year") },
+            country, number("episode_time")?.takeIf { it > 0 }, number("number_of_episodes"), number("number_of_episodes_online"),
+            status, taxonomy("genres", "generos"), taxonomy("labels", "etiquetas"), taxonomy("networks", "productoras"),
+            info?.optJSONArray("langs").objects().mapNotNull { it.optString("name").takeIf(String::isNotBlank) },
+            if (subs == null) emptyList() else (0 until subs.length()).map { index ->
+                when (val code = subs.optString(index)) { "es" -> "Español"; "en" -> "Inglés"; "pt" -> "Portugués"; else -> code.uppercase() }
+            }.filter(String::isNotBlank).distinct(),
+            info?.optJSONArray("cast").objects().mapNotNull { person ->
+                person.optString("name").takeIf(String::isNotBlank)?.let { DoramaCast(it, person.optString("character")) }
+            }.take(12),
+            episodes, field("_id"), page.select("script[src]").map { it.attr("src") }
+                .filter { it.matches(Regex("/_next/static/chunks/[a-zA-Z0-9._-]+\\.js")) }.distinct()
+        )
+    }
+
+    suspend fun similar(details: DoramaDetails): List<Dorama> = withContext(Dispatchers.IO) {
+        val id = details.sourceId
+        check(id.matches(Regex("[a-f0-9]{24}"))) { "La ficha no incluye el identificador de Doramasflix" }
+        fun query(action: String): List<Dorama> {
+            val response = Jsoup.connect(details.show.url).method(org.jsoup.Connection.Method.POST)
+                .header("Next-Action", action).header("Accept", "text/x-component")
+                .header("Content-Type", "text/plain;charset=UTF-8").ignoreContentType(true)
+                .followRedirects(false).timeout(12_000).maxBodySize(1_000_000)
+                .requestBody(JSONArray().put(JSONObject().put("dorama_id", id).put("limit", 12)).toString())
+                .execute()
+            check(response.statusCode() == 200)
+            return parseSimilar(response.body(), details.show.slug)
+        }
+        val action = similarAction
+        val initial = runCatching { query(action) }
+        if (initial.isSuccess) return@withContext initial.getOrThrow()
+        val pattern = Regex("\"([a-f0-9]{40})\",[^;]{0,180}\"getSimilarsDoramas\"")
+        val refreshed = details.scripts.asReversed().firstNotNullOfOrNull { path ->
+            runCatching {
+                val script = Jsoup.connect("$ORIGIN$path").ignoreContentType(true).timeout(4_000)
+                    .maxBodySize(2_000_000).execute().body()
+                pattern.find(script)?.groupValues?.get(1)
+            }.getOrNull()
+        } ?: throw initial.exceptionOrNull()!!
+        query(refreshed).also { similarAction = refreshed }
+    }
+
+    internal fun parseSimilar(response: String, currentSlug: String): List<Dorama> {
+        val reference = Regex("\"a\":\"\\$@([a-f0-9]+)\"").find(response)?.groupValues?.get(1)
+        val prefix = "${reference ?: "1"}:"
+        val items = response.lineSequence().firstOrNull { it.startsWith("${prefix}[") }
+            ?.removePrefix(prefix)?.let(::JSONArray) ?: error("Respuesta de similares inválida")
+        return items.objects().mapNotNull { item ->
+            val slug = item.optString("slug")
+            if (slug == currentSlug || series("/doramas/$slug") == null || item.optBoolean("isTVShow")) return@mapNotNull null
+            val title = item.optString("name_es").takeUnless { it.isBlank() || it == "null" } ?: item.optString("name")
+            if (title.isBlank()) return@mapNotNull null
+            Dorama(slug, title, posterUrl(item.optString("poster_path")))
+        }.distinctBy { it.slug }
+    }
+
+    private fun posterUrl(path: String) = if (path.matches(Regex("/[a-zA-Z0-9._-]+"))) "https://image.tmdb.org/t/p/w342$path" else ""
 
     suspend fun recent(): List<DoramaPublication> = withContext(Dispatchers.IO) {
         document("$ORIGIN/ultimos-episodios").select("a[href]").mapNotNull { link ->
