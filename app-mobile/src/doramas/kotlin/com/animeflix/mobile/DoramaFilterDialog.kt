@@ -46,6 +46,26 @@ internal fun DoramaFilterDialog(
                 else -> Column(Modifier.verticalScroll(rememberScrollState())) {
                     DoramaFilter.entries.forEach { filter ->
                         var expanded by remember { mutableStateOf(false) }
+                        val candidates = choices[filter].orEmpty()
+                        val otherFilters = draft - filter
+                        var verified by remember(candidates, otherFilters) { mutableStateOf(emptyList<DoramaFilterOption>()) }
+                        var checked by remember(candidates, otherFilters) { mutableIntStateOf(0) }
+                        var batches by remember(candidates, otherFilters) { mutableIntStateOf(1) }
+                        var verifyRetry by remember(candidates, otherFilters) { mutableIntStateOf(0) }
+                        var checkFailed by remember(candidates, otherFilters) { mutableStateOf(false) }
+                        val limit = minOf(batches * 12, candidates.size)
+                        LaunchedEffect(expanded, limit, otherFilters, verifyRetry) {
+                            if (!expanded || !filter.verifyOptions || checked >= limit) return@LaunchedEffect
+                            checkFailed = false
+                            try {
+                                verified = verified + DoramasCatalog.availableFilterOptions(
+                                    filter, candidates.subList(checked, limit), otherFilters)
+                                checked = limit
+                            } catch (error: Exception) {
+                                if (error is CancellationException) throw error
+                                checkFailed = true
+                            }
+                        }
                         Box {
                             OutlinedButton(onClick = { expanded = true },
                                 enabled = choices[filter].orEmpty().isNotEmpty(),
@@ -60,11 +80,25 @@ internal fun DoramaFilterDialog(
                                     draft = draft - filter
                                     expanded = false
                                 }, modifier = Modifier.tvRemoteFocus())
-                                choices[filter].orEmpty().forEach { option ->
+                                val visible = if (filter.verifyOptions) verified else candidates
+                                visible.forEach { option ->
                                     DropdownMenuItem(text = { Text(option.label) }, onClick = {
                                         draft = draft + (filter to option)
                                         expanded = false
                                     }, modifier = Modifier.tvRemoteFocus())
+                                }
+                                if (filter.verifyOptions) {
+                                    when {
+                                        checkFailed -> DropdownMenuItem(text = { Text("Reintentar opciones") }, onClick = {
+                                            verifyRetry++
+                                        }, modifier = Modifier.tvRemoteFocus())
+                                        checked < limit -> DropdownMenuItem(text = { Text("Comprobando opciones…") },
+                                            enabled = false, onClick = {})
+                                        checked < candidates.size -> DropdownMenuItem(text = { Text("Comprobar más opciones") },
+                                            onClick = { batches++ }, modifier = Modifier.tvRemoteFocus())
+                                        verified.isEmpty() -> DropdownMenuItem(text = { Text("Sin opciones con resultados") },
+                                            enabled = false, onClick = {})
+                                    }
                                 }
                             }
                         }

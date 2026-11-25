@@ -412,7 +412,15 @@ internal fun ProductApp() {
                     } else if (remoteSearch && matching == null) {
                         item { CircularProgressIndicator(Modifier.padding(16.dp)) }
                     } else if (displayed.isEmpty() && !loading && error == null && linkedSlug == null) {
-                        item { Text(if (tab == LibraryTab.Favorites) "Tu lista está vacía." else "No hay resultados.", Modifier.padding(16.dp)) }
+                        item {
+                            Text(if (tab == LibraryTab.Favorites) "Tu lista está vacía."
+                                else if (filters.isNotEmpty()) "No hay resultados con estos filtros."
+                                else "No hay resultados.", Modifier.padding(16.dp))
+                            if (tab == LibraryTab.Catalog && filters.isNotEmpty()) {
+                                TextButton(onClick = { filters = emptyMap() },
+                                    modifier = if (tv) Modifier.tvRemoteFocus() else Modifier) { Text("Quitar filtros") }
+                            }
+                        }
                     }
                     items(displayed, key = { it.slug }) { show ->
                         val caughtUp by produceState(false, show.slug, hideCaughtUp, watched) {

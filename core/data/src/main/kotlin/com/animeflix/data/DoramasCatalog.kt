@@ -31,7 +31,9 @@ enum class DoramaFilter(val label: String, val parameter: String, val list: Stri
     Audio("Idioma", "bylanguages", "listLanguages"),
     Subtitles("Subtítulos", "bysubtitles"),
     Year("Año", "years"),
-    Status("Estado", "status")
+    Status("Estado", "status");
+
+    val verifyOptions get() = this == Network || this == Year
 }
 
 data class DoramaFilterOption(val slug: String, val label: String)
@@ -48,6 +50,11 @@ object DoramasCatalog {
     private val seriesPath = Regex("/doramas/([a-z0-9-]+)")
     private val episodePath = Regex("/capitulos/([a-z0-9-]+)-(\\d+)x(\\d+)")
     private val checks = Semaphore(3)
+    private val filterAvailability = java.util.Collections.synchronizedMap(
+        object : LinkedHashMap<String, Pair<Long, Boolean>>(300, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Pair<Long, Boolean>>?) = size > 300
+        }
+    )
     private val availabilityCache = java.util.Collections.synchronizedMap(
         object : LinkedHashMap<String, Pair<Long, DoramaAvailability>>(200, 0.75f, true) {
             override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Pair<Long, DoramaAvailability>>?) = size > 200
@@ -63,10 +70,39 @@ object DoramasCatalog {
     }
 
     suspend fun catalog(page: Int, filters: Map<DoramaFilter, DoramaFilterOption> = emptyMap()): List<Dorama> = withContext(Dispatchers.IO) {
-        val parameters = filters.entries.joinToString("") { (type, option) ->
+        seriesCards(document(catalogUrl(page, filters)))
+    }
+
+    private fun catalogUrl(page: Int, filters: Map<DoramaFilter, DoramaFilterOption>): String {
+        val parameters = filters.entries.sortedBy { it.key.ordinal }.joinToString("") { (type, option) ->
             "&${type.parameter}=${URLEncoder.encode(option.slug, "UTF-8")}"
         }
-        seriesCards(document("$ORIGIN/doramas?page=$page$parameters"))
+        return "$ORIGIN/doramas?page=$page$parameters"
+    }
+
+    suspend fun availableFilterOptions(
+        filter: DoramaFilter,
+        candidates: List<DoramaFilterOption>,
+        selected: Map<DoramaFilter, DoramaFilterOption>
+    ): List<DoramaFilterOption> = coroutineScope {
+        candidates.map { option ->
+            async {
+                checks.withPermit {
+                    val url = catalogUrl(1, selected + (filter to option))
+                    val now = System.currentTimeMillis()
+                    val cached = filterAvailability[url]?.takeIf { now - it.first < 15 * 60_000 }
+                    val available = cached?.second ?: withContext(Dispatchers.IO) {
+                        val page = document(url)
+                        when {
+                            seriesCards(page).isNotEmpty() -> true
+                            page.select("p").any { it.text().equals("No hay doramas disponibles.", ignoreCase = true) } -> false
+                            else -> error("Doramasflix no devolvió resultados verificables")
+                        }.also { filterAvailability[url] = now to it }
+                    }
+                    option.takeIf { available }
+                }
+            }
+        }.awaitAll().filterNotNull()
     }
 
     suspend fun filters(): Map<DoramaFilter, List<DoramaFilterOption>> = withContext(Dispatchers.IO) {
@@ -85,7 +121,9 @@ object DoramasCatalog {
                     val slug = item.optString("slug")
                     val name = item.optString("name")
                     if (slug.isBlank() || name.isBlank()) null else DoramaFilterOption(slug, name)
-                }.distinctBy { it.slug }.sortedBy { it.label.lowercase() }
+                }.distinctBy { it.slug }.let { values ->
+                    if (filter == DoramaFilter.Network) values else values.sortedBy { it.label.lowercase() }
+                }
             }
         }.also { options -> check(options.any { (filter, values) -> filter.list != null && values.isNotEmpty() }) }
     }
