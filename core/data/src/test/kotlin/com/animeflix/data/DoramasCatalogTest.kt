@@ -9,6 +9,24 @@ class DoramasCatalogTest {
     private val now = 1_800_000_000_000L
 
     @Test
+    fun combinesCatalogFiltersWithSearchResults() {
+        val page = pageWith("""
+            [{"_id":"related","slug":"otro"},{"_id":"v","slug":"vincenzo","country":"corea","first_air_date":"2021-02-20",
+              "isFinish":true,"seasons":[{}],"genres":[{"slug":"accion"}],"networks":[{"slug":"netflix"}],
+              "langs":[{"slug":"coreano"}],"subtitles_available":["es"]}]
+        """.trimIndent(), """<a href="/etiquetas/leyes">Leyes</a>""")
+        val filters = mapOf(
+            DoramaFilter.Country to "corea", DoramaFilter.Genre to "accion", DoramaFilter.Network to "netflix",
+            DoramaFilter.Tag to "leyes", DoramaFilter.Audio to "coreano", DoramaFilter.Subtitles to "es",
+            DoramaFilter.Year to "2021", DoramaFilter.Status to "finished"
+        ).mapValues { DoramaFilterOption(it.value, it.value) }
+
+        assertTrue(DoramasCatalog.matchesFilters(page, "vincenzo", filters))
+        assertFalse(DoramasCatalog.matchesFilters(page, "vincenzo",
+            filters + (DoramaFilter.Country to DoramaFilterOption("japon", "Japón"))))
+    }
+
+    @Test
     fun audioIncludesNewServersEvenBeforeTheSiteListsTheirNames() {
         val page = pageWith("""
             {"listLanguages":[{"code_flix":"1","name":"Coreano"},{"code_flix":"2","name":"Latino"}],

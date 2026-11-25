@@ -25,6 +25,8 @@ import coil.compose.AsyncImage
 import com.animeflix.data.Dorama
 import com.animeflix.data.DoramaAvailability
 import com.animeflix.data.DoramaEpisode
+import com.animeflix.data.DoramaFilter
+import com.animeflix.data.DoramaFilterOption
 import com.animeflix.data.DoramaPublication
 import com.animeflix.data.DoramasCatalog
 import com.animeflix.data.ProfileAnimeRepository
@@ -33,6 +35,7 @@ import com.animeflix.playback.LocalProfileViewModelKey
 import com.animeflix.playback.LocalProfileSwitchFocus
 import com.animeflix.playback.tvRemoteFocus
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -65,11 +68,15 @@ internal fun ProductApp() {
     val downloads = remember(context, profile) { DoramaDownloads(context.applicationContext, profile) }
     var tab by rememberSaveable { mutableStateOf(LibraryTab.Catalog) }
     var query by rememberSaveable { mutableStateOf("") }
+    var filters by remember { mutableStateOf(emptyMap<DoramaFilter, DoramaFilterOption>()) }
+    var showFilters by remember { mutableStateOf(false) }
+    var catalogJob by remember { mutableStateOf<Job?>(null) }
     val searchTerm = query.trim()
     val linkedSlug = searchTerm.takeIf { it.startsWith(DoramasCatalog.ORIGIN + "/") }?.let(DoramasCatalog::series)
     val remoteSearch = tab == LibraryTab.Catalog && searchTerm.isNotEmpty() && linkedSlug == null
-    var searchResult by remember { mutableStateOf<Pair<String, List<Dorama>>?>(null) }
-    var searchError by remember { mutableStateOf<String?>(null) }
+    val searchKey = searchTerm to filters
+    var searchResult by remember { mutableStateOf<Pair<Pair<String, Map<DoramaFilter, DoramaFilterOption>>, List<Dorama>>?>(null) }
+    var searchError by remember { mutableStateOf(false) }
     var searchRetry by remember { mutableIntStateOf(0) }
     var selected by remember { mutableStateOf<Dorama?>(null) }
     var playing by remember { mutableStateOf<DoramaEpisode?>(null) }
@@ -95,9 +102,9 @@ internal fun ProductApp() {
         if (loading || !hasMore) return
         loading = true
         error = null
-        scope.launch {
+        catalogJob = scope.launch {
             try {
-                val next = DoramasCatalog.catalog(page)
+                val next = DoramasCatalog.catalog(page, filters)
                 val existing = catalog.mapTo(mutableSetOf()) { it.slug }
                 val additions = next.filter { it.slug !in existing }
                 catalog.addAll(additions)
@@ -112,16 +119,23 @@ internal fun ProductApp() {
         }
     }
 
-    LaunchedEffect(Unit) { nextPage() }
-    LaunchedEffect(remoteSearch, searchTerm, searchRetry) {
+    LaunchedEffect(filters) {
+        catalogJob?.cancel()
+        catalogJob?.join()
+        catalog.clear()
+        page = 1
+        hasMore = true
+        nextPage()
+    }
+    LaunchedEffect(remoteSearch, searchKey, searchRetry) {
         if (!remoteSearch) return@LaunchedEffect
-        searchError = null
+        searchError = false
         delay(300)
         try {
-            searchResult = searchTerm to DoramasCatalog.search(searchTerm)
+            searchResult = searchKey to DoramasCatalog.search(searchTerm, filters)
         } catch (failure: Exception) {
             if (failure is CancellationException) throw failure
-            searchError = searchTerm
+            searchError = true
         }
     }
     LaunchedEffect(tab, recentRetry) {
@@ -317,6 +331,10 @@ internal fun ProductApp() {
                     Text(if (hideCaughtUp) "Mostrar al día" else "Ocultar al día")
                 }
             if (tab == LibraryTab.Catalog) {
+                if (showFilters) DoramaFilterDialog(filters, onDismiss = { showFilters = false }) {
+                    filters = it
+                    showFilters = false
+                }
                 OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth().padding(12.dp).focusProperties {
                     if (tv && switchProfile != null) up = switchProfile
                 }.onPreviewKeyEvent {
@@ -330,6 +348,10 @@ internal fun ProductApp() {
                     }
                 }, label = { Text("Buscar o pegar enlace a una ficha") }, singleLine = true,
                     keyboardOptions = KeyboardOptions(showKeyboardOnFocus = !tv))
+                TextButton(onClick = { showFilters = true },
+                    modifier = if (tv) Modifier.tvRemoteFocus() else Modifier) {
+                    Text(if (filters.isEmpty()) "Filtros" else "Filtros (${filters.size})")
+                }
                 if (linkedSlug != null) TextButton(onClick = {
                     selected = catalog.find { it.slug == linkedSlug }
                         ?: Dorama(linkedSlug, linkedSlug.replace('-', ' ').replaceFirstChar { it.uppercase() })
@@ -378,14 +400,14 @@ internal fun ProductApp() {
                         )
                     }
                 } else {
-                    val matching = searchResult?.takeIf { it.first == searchTerm }?.second
+                    val matching = searchResult?.takeIf { it.first == searchKey }?.second
                     val displayed = when {
                         tab == LibraryTab.Favorites -> favorites.values.sortedBy { it.title }
                         remoteSearch -> matching ?: emptyList()
                         linkedSlug != null -> emptyList()
                         else -> catalog
                     }
-                    if (remoteSearch && searchError == searchTerm) {
+                    if (remoteSearch && searchError) {
                         item { TextButton(onClick = { searchRetry++ }) { Text("Reintentar búsqueda") } }
                     } else if (remoteSearch && matching == null) {
                         item { CircularProgressIndicator(Modifier.padding(16.dp)) }
